@@ -63,6 +63,12 @@ Migrations live in `supabase/migrations`. Push with:
 
 `supabase db push`
 
+### Diagnose token lookup (admin)
+
+Hvis `/k/<token>` viser “Kunne ikke hente bin-data…”, så kan du tjekke om token findes i DB, og om Supabase env virker:
+
+`GET /api/admin/diagnose-token?token=<token>` med header `x-admin-key: <ADMIN_API_KEY>`
+
 ## Web Push (VAPID)
 
 Set these env vars on Vercel (Production + Preview):
