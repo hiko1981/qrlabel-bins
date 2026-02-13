@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getBinIdByToken } from '@/lib/data';
 import { getLocaleFromHeaders } from '@/lib/i18n';
-import { randomNumericCode, sha256Base64Url } from '@/lib/crypto';
+import { sha256Base64Url } from '@/lib/crypto';
 import { deliverOtp } from '@/lib/otpDelivery';
+import { getOtpWindow, otpCodeForContact } from '@/lib/otp';
 
 const Body = z.object({
   binToken: z.string().min(6),
@@ -104,7 +105,8 @@ export async function POST(req: Request) {
     if (!ok) return new NextResponse('Not allowed', { status: 403 });
   }
 
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const otpWindow = getOtpWindow();
+  const expiresAt = otpWindow.windowEnd.toISOString();
 
   const locale = getLocaleFromHeaders(req.headers);
   const targetsToSend =
@@ -115,10 +117,32 @@ export async function POST(req: Request) {
   const created: string[] = [];
   const codesByContact = new Map<string, string>();
   for (const t of targetsToSend) {
-    const perContactCode = codesByContact.get(t.contactId) ?? randomNumericCode(6);
+    const perContactCode =
+      codesByContact.get(t.contactId) ??
+      otpCodeForContact({ contactId: t.contactId, binId, role: body.role, now: new Date() });
     codesByContact.set(t.contactId, perContactCode);
 
     const codeHash = sha256Base64Url(`${perContactCode}:${binId}:${body.role}:${t.type}:${t.value}`);
+
+    // Idempotency: reuse an active verification in the current OTP window.
+    const { data: existing } = await supabase
+      .from('contact_verifications')
+      .select('id,expires_at,consumed_at')
+      .eq('contact_id', t.contactId)
+      .eq('bin_id', binId)
+      .eq('role', body.role)
+      .eq('contact_type', t.type)
+      .eq('contact_value', t.value)
+      .is('consumed_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing?.id) {
+      created.push(existing.id);
+      continue;
+    }
+
     const { data: verification, error } = await supabase
       .from('contact_verifications')
       .insert({

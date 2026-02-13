@@ -81,6 +81,30 @@ export async function POST(req: Request) {
     return new NextResponse('Invalid code', { status: 400 });
   }
 
+  // Reuse an existing unconsumed claim for this contact (avoids creating many half-claims if passkey step fails).
+  if (v.contact_id) {
+    const { data: existingClaim } = await supabase
+      .from('claim_tokens')
+      .select('token, user_id, used_at, expires_at')
+      .eq('bin_token', body.binToken)
+      .eq('role', v.role)
+      .eq('claim_contact_id', v.contact_id)
+      .is('used_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingClaim?.token && (!existingClaim.expires_at || new Date(existingClaim.expires_at) > new Date())) {
+      const consumedAt = new Date().toISOString();
+      await supabase
+        .from('contact_verifications')
+        .update({ consumed_at: consumedAt })
+        .eq('contact_id', v.contact_id)
+        .is('consumed_at', null);
+
+      return NextResponse.json({ ok: true, claimToken: existingClaim.token, claimUrl: `/claim/${existingClaim.token}` });
+    }
+  }
+
   // Create principal + membership + claim token (passkey registration)
   const { data: user, error: userErr } = await supabase.from('users').insert({}).select('id').single();
   if (userErr) return new NextResponse(userErr.message, { status: 500 });

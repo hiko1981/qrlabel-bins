@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useWebOtp } from '@/components/useWebOtp';
-import { startRegistration } from '@simplewebauthn/browser';
 import Link from 'next/link';
 
 export function ClaimAccess({
@@ -24,7 +23,7 @@ export function ClaimAccess({
   const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [claimToken, setClaimToken] = useState<string | null>(null);
-  const [phase, setPhase] = useState<'start' | 'code' | 'registering'>('start');
+  const [phase, setPhase] = useState<'start' | 'code'>('start');
 
   useWebOtp({
     enabled: awaitingCode,
@@ -64,27 +63,6 @@ export function ClaimAccess({
     }
   }
 
-  async function registerWithClaimToken(token: string) {
-    setPhase('registering');
-    const optionsRes = await fetch('/api/webauthn/register/options', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ claimToken: token }),
-    });
-    if (!optionsRes.ok) throw new Error(await optionsRes.text());
-    const options = await optionsRes.json();
-
-    const attResp = await startRegistration(options);
-    const verifyRes = await fetch('/api/webauthn/register/verify', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ claimToken: token, response: attResp }),
-    });
-    if (!verifyRes.ok) throw new Error(await verifyRes.text());
-    const { redirectTo } = (await verifyRes.json()) as { redirectTo: string };
-    window.location.assign(redirectTo);
-  }
-
   async function verify() {
     setError(null);
     setBusy(true);
@@ -107,8 +85,7 @@ export function ClaimAccess({
       }
       if (!data) throw new Error(lastErr || 'Invalid code');
       setClaimToken(data.claimToken);
-
-      await registerWithClaimToken(data.claimToken);
+      window.location.assign(data.claimUrl ?? `/claim/${encodeURIComponent(data.claimToken)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -158,7 +135,7 @@ export function ClaimAccess({
             className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => verify()}
           >
-            Aktivér (opret passkey)
+            {busy ? 'Tjekker kode…' : 'Fortsæt'}
           </button>
           {devCode ? (
             <div className="text-xs text-neutral-500">
@@ -166,19 +143,6 @@ export function ClaimAccess({
             </div>
           ) : null}
         </>
-      ) : null}
-
-      {phase === 'registering' ? (
-        <div className="rounded-lg border bg-white p-3 text-sm text-neutral-700">
-          Opretter passkey… hvis du afbryder, kan du fortsætte senere.
-          {claimToken ? (
-            <div className="mt-2">
-              <Link className="underline" href={`/claim/${encodeURIComponent(claimToken)}`}>
-                Fortsæt opsætning
-              </Link>
-            </div>
-          ) : null}
-        </div>
       ) : null}
 
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
