@@ -43,10 +43,9 @@ export async function POST(req: Request) {
     binId,
     eventType: 'misplaced_location_shared',
     payload: eventPayload,
-    url: `https://qrlabel.one/k/${body.binToken}`,
+    url: `https://qrlabel.eu/owner`,
     locale,
   });
 
   return NextResponse.json({ ok: true, eventId: evt.id });
 }
-

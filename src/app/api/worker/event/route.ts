@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     binId,
     eventType: body.type,
     payload,
-    url: `https://qrlabel.one/k/${body.binToken}`,
+    url: `https://qrlabel.eu/owner`,
     locale,
   });
 

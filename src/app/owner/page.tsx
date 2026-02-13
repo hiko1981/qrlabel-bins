@@ -2,6 +2,7 @@ import { getSession } from '@/lib/session';
 import { getOwnerBins, getRecentEventsForBins } from '@/lib/data';
 import { PushToggle } from '@/components/push/PushToggle';
 import { BinMarker } from '@/components/BinMarker';
+import { NotificationPrefs } from '@/components/NotificationPrefs';
 
 function formatEvent(type: string) {
   switch (type) {
@@ -76,6 +77,10 @@ export default async function OwnerDashboard() {
 
       <div className="mt-6 rounded-xl border bg-white p-4">
         <PushToggle role="owner" />
+      </div>
+
+      <div className="mt-6 rounded-xl border bg-white p-4">
+        <NotificationPrefs />
       </div>
 
       <h2 className="mt-8 text-lg font-semibold">Dine spande</h2>

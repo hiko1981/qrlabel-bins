@@ -94,6 +94,17 @@ I production sendes koden via en provider (email/SMS). Uden provider vil `/api/c
 - Hvis en bin ikke har registreret email/telefon for en rolle, kan den rolle ikke claim’e via OTP.
   - Brug i stedet admin-flowet (`/admin/labels` → udsted medlem / claim-link) til at udstede adgang.
 
+## Notifikationer (kanaler per bruger)
+
+Brugere kan slå fallback-kanaler til/fra på `/owner`:
+- Push (kræver passkey + service worker subscription)
+- SMS fallback (Twilio)
+- Email fallback (Resend)
+
+Env vars:
+- `RESEND_API_KEY`, `RESEND_FROM`
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
+
 **MANUAL STEP:** Vælg og konfigurér en provider:
 
 - Email: Resend (anbefalet)

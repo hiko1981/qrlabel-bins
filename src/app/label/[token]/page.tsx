@@ -79,6 +79,14 @@ export default async function LabelPage({ params }: { params: Promise<{ token: s
           >
             {t(locale, 'downloadPdfSheet12')}
           </a>
+          <a
+            className="block rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
+            href={`/label/${encodeURIComponent(token)}/print?autoprint=1&wmm=102&hmm=152`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Print (ZD421T)
+          </a>
 
           <div className="pt-2 text-xs text-neutral-500">
             Token: <span className="font-mono">{token}</span>
