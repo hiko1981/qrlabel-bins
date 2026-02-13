@@ -24,6 +24,12 @@ Web-only scanning med WebAuthn/Passkeys (device-binding).
 
 `pnpm dev`
 
+### QR label test
+
+Generér QR med center-logo og dekod den igen lokalt:
+
+`pnpm run verify:qr`
+
 ### Supabase schema
 
 Migrations ligger i `supabase/migrations`.

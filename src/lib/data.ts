@@ -6,13 +6,18 @@ export type Bin = {
   id: string;
   label: string;
   municipality: string | null;
+  addressLine1?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  country?: string | null;
+  wasteStream?: string | null;
 };
 
 export async function getBinByToken(token: string): Promise<Bin | null> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('bin_tokens')
-    .select('token, bin:bins(id,label,municipality)')
+    .select('token, bin:bins(id,label,municipality,address_line1,postal_code,city,country,waste_stream)')
     .eq('token', token)
     .maybeSingle();
   const bin = data?.bin ? (Array.isArray(data.bin) ? data.bin[0] : data.bin) : null;
@@ -21,6 +26,11 @@ export async function getBinByToken(token: string): Promise<Bin | null> {
     id: bin.id,
     label: bin.label,
     municipality: bin.municipality,
+    addressLine1: bin.address_line1 ?? null,
+    postalCode: bin.postal_code ?? null,
+    city: bin.city ?? null,
+    country: bin.country ?? null,
+    wasteStream: bin.waste_stream ?? null,
   };
 }
 
