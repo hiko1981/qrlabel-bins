@@ -60,16 +60,17 @@ export async function POST(req: Request) {
         const primary = emailOnly[0]!;
         const phoneValue = phoneOnly[0]!.phone;
 
+        // Delete the phone-only row(s) first to avoid unique index conflicts on (bin_id, role, phone).
+        const idsToDeleteFirst = [...phoneOnly.map((c) => c.id), ...emailOnly.slice(1).map((c) => c.id)];
+        if (idsToDeleteFirst.length > 0) {
+          await supabase.from('bin_claim_contacts').delete().in('id', idsToDeleteFirst).is('activated_at', null);
+        }
+
         await supabase
           .from('bin_claim_contacts')
           .update({ phone: phoneValue })
           .eq('id', primary.id)
           .is('activated_at', null);
-
-        const idsToDelete = [...emailOnly.slice(1).map((c) => c.id), ...phoneOnly.map((c) => c.id)];
-        if (idsToDelete.length > 0) {
-          await supabase.from('bin_claim_contacts').delete().in('id', idsToDelete).is('activated_at', null);
-        }
 
         // Refresh
         const { data: merged } = await supabase

@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useWebOtp } from '@/components/useWebOtp';
 import { startRegistration } from '@simplewebauthn/browser';
 
 export function ClaimAccess({
   initialToken,
   initialRole,
+  autoStart,
 }: {
   initialToken: string;
   initialRole: 'owner' | 'worker';
+  autoStart: boolean;
 }) {
   const role = initialRole;
 
@@ -24,6 +26,14 @@ export function ClaimAccess({
     enabled: awaitingCode,
     onCode: (c) => setCode(c.replace(/[^\d]/g, '').slice(0, 6)),
   });
+
+  useEffect(() => {
+    if (!autoStart) return;
+    if (!binToken) return;
+    if (awaitingCode) return;
+    start().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, binToken]);
 
   async function start() {
     setError(null);
