@@ -1,0 +1,142 @@
+'use client';
+
+import { useState } from 'react';
+
+export function ClaimAccess() {
+  const [binToken, setBinToken] = useState('');
+  const [role, setRole] = useState<'owner' | 'worker'>('owner');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function start() {
+    setError(null);
+    setBusy(true);
+    try {
+      const isEmail = emailOrPhone.includes('@');
+      const res = await fetch('/api/claim/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          binToken,
+          role,
+          email: isEmail ? emailOrPhone : undefined,
+          phone: !isEmail ? emailOrPhone : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { verificationId: string; devCode?: string };
+      setVerificationId(data.verificationId);
+      setDevCode(data.devCode ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verify() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch('/api/claim/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ verificationId, code, binToken }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { claimUrl: string };
+      window.location.assign(data.claimUrl);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {!verificationId ? (
+        <>
+          <div className="grid gap-2">
+            <label className="text-sm">
+              Bin token
+              <input
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                value={binToken}
+                onChange={(e) => setBinToken(e.target.value)}
+                placeholder="fx AbC123..."
+              />
+            </label>
+            <label className="text-sm">
+              Rolle
+              <select
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                value={role}
+                onChange={(e) => setRole(e.target.value === 'worker' ? 'worker' : 'owner')}
+              >
+                <option value="owner">owner</option>
+                <option value="worker">worker</option>
+              </select>
+            </label>
+            <label className="text-sm">
+              Email eller telefon
+              <input
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                value={emailOrPhone}
+                onChange={(e) => setEmailOrPhone(e.target.value)}
+                placeholder="mail@... eller 27141448"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={busy || !binToken || !emailOrPhone}
+            className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => start()}
+          >
+            Send kode
+          </button>
+          {devCode ? (
+            <div className="text-xs text-neutral-500">
+              DEV kode: <span className="font-mono">{devCode}</span>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <label className="text-sm">
+            Indtast kode
+            <input
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="6-cifret kode"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy || !code}
+            className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => verify()}
+          >
+            Verificér
+          </button>
+          {devCode ? (
+            <div className="text-xs text-neutral-500">
+              DEV kode: <span className="font-mono">{devCode}</span>
+            </div>
+          ) : null}
+        </>
+      )}
+
+      {error ? <div className="text-sm text-red-600">{error}</div> : null}
+      <div className="text-xs text-neutral-500">
+        MANUAL STEP: I production skal koden sendes via email/SMS provider (se `docs/DEPLOY.md`).
+      </div>
+    </div>
+  );
+}

@@ -7,6 +7,11 @@ import { randomToken } from '@/lib/random';
 const Body = z.object({
   label: z.string().min(1),
   municipality: z.string().optional(),
+  addressLine1: z.string().optional(),
+  postalCode: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  wasteStream: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -18,7 +23,15 @@ export async function POST(req: Request) {
 
   const { data: bin, error: binErr } = await supabase
     .from('bins')
-    .insert({ label: body.label, municipality: body.municipality ?? null })
+    .insert({
+      label: body.label,
+      municipality: body.municipality ?? null,
+      address_line1: body.addressLine1 ?? null,
+      postal_code: body.postalCode ?? null,
+      city: body.city ?? null,
+      country: body.country ?? null,
+      waste_stream: body.wasteStream ?? null,
+    })
     .select('id')
     .single();
   if (binErr) return new NextResponse(binErr.message, { status: 500 });

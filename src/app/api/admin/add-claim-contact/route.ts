@@ -1,0 +1,34 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { requireAdmin } from '@/lib/adminAuth';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { getBinIdByToken } from '@/lib/data';
+
+const Body = z.object({
+  binToken: z.string().min(6),
+  role: z.enum(['owner', 'worker']),
+  email: z.string().email().optional(),
+  phone: z.string().min(3).optional(),
+});
+
+export async function POST(req: Request) {
+  const guard = requireAdmin(req);
+  if (guard) return guard;
+
+  const body = Body.parse(await req.json());
+  if (!body.email && !body.phone) return new NextResponse('email or phone required', { status: 400 });
+
+  const binId = await getBinIdByToken(body.binToken);
+  if (!binId) return new NextResponse('Unknown bin token', { status: 404 });
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from('bin_claim_contacts').insert({
+    bin_id: binId,
+    role: body.role,
+    email: body.email?.toLowerCase() ?? null,
+    phone: body.phone ?? null,
+  });
+  if (error) return new NextResponse(error.message, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
