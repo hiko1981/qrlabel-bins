@@ -89,6 +89,11 @@ Then set the values in Vercel env vars.
 
 I production sendes koden via en provider (email/SMS). Uden provider vil `/api/claim/start` returnere `501`.
 
+### Push vs OTP (vigtigt)
+- Web Push kræver passkey og kan derfor først bruges efter claim/aktivering.
+- Hvis en bin ikke har registreret email/telefon for en rolle, kan den rolle ikke claim’e via OTP.
+  - Brug i stedet admin-flowet (`/admin/labels` → udsted medlem / claim-link) til at udstede adgang.
+
 **MANUAL STEP:** Vælg og konfigurér en provider:
 
 - Email: Resend (anbefalet)

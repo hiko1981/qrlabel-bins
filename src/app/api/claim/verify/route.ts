@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   let v:
     | {
         id: string;
+        contact_id: string | null;
         bin_id: string;
         role: string;
         contact_type: string;
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
   if (body.verificationId) {
     const res = await supabase
       .from('contact_verifications')
-      .select('id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
+      .select('id,contact_id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
       .eq('id', body.verificationId)
       .maybeSingle();
     if (res.error || !res.data) return new NextResponse('Invalid verification', { status: 400 });
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
 
     const { data: candidates, error: candErr } = await supabase
       .from('contact_verifications')
-      .select('id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
+      .select('id,contact_id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
       .eq('bin_id', tokenRow.bin_id)
       .order('created_at', { ascending: false })
       .limit(25);
@@ -107,14 +108,21 @@ export async function POST(req: Request) {
     role: v.role,
     contact_type: v.contact_type,
     contact_value: v.contact_value,
+    claim_contact_id: v.contact_id,
     expires_at: expiresAt,
   });
   if (claimIns.error) return new NextResponse(claimIns.error.message, { status: 500 });
 
-  await supabase
-    .from('contact_verifications')
-    .update({ consumed_at: new Date().toISOString() })
-    .eq('id', v.id);
+  const consumedAt = new Date().toISOString();
+  if (v.contact_id) {
+    await supabase
+      .from('contact_verifications')
+      .update({ consumed_at: consumedAt })
+      .eq('contact_id', v.contact_id)
+      .is('consumed_at', null);
+  } else {
+    await supabase.from('contact_verifications').update({ consumed_at: consumedAt }).eq('id', v.id);
+  }
 
   return NextResponse.json({ ok: true, claimToken, claimUrl: `/claim/${claimToken}` });
 }

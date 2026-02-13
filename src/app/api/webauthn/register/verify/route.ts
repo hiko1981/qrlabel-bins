@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const supabase = getSupabaseAdmin();
   const { data: claim } = await supabase
     .from('claim_tokens')
-    .select('token, user_id, role, bin_token, used_at, expires_at, contact_type, contact_value')
+    .select('token, user_id, role, bin_token, used_at, expires_at, contact_type, contact_value, claim_contact_id')
     .eq('token', body.claimToken)
     .maybeSingle();
   if (!claim) return new NextResponse('Invalid claim token', { status: 400 });
@@ -62,22 +62,12 @@ export async function POST(req: Request) {
     .eq('token', claim.token);
   if (markUsed.error) return new NextResponse(markUsed.error.message, { status: 500 });
 
-  if (claim.contact_type && claim.contact_value) {
-    const { data: tokenRow, error: tokenErr } = await supabase
-      .from('bin_tokens')
-      .select('bin_id')
-      .eq('token', claim.bin_token)
-      .maybeSingle();
-    if (!tokenErr && tokenRow?.bin_id) {
-      const matchColumn = claim.contact_type === 'email' ? 'email' : 'phone';
-      await supabase
-        .from('bin_claim_contacts')
-        .update({ activated_at: new Date().toISOString(), activated_user_id: claim.user_id })
-        .eq('bin_id', tokenRow.bin_id)
-        .eq('role', claim.role)
-        .eq(matchColumn, claim.contact_value)
-        .is('activated_at', null);
-    }
+  if (claim.claim_contact_id) {
+    await supabase
+      .from('bin_claim_contacts')
+      .update({ activated_at: new Date().toISOString(), activated_user_id: claim.user_id })
+      .eq('id', claim.claim_contact_id)
+      .is('activated_at', null);
   }
 
   await setSession(claim.user_id);

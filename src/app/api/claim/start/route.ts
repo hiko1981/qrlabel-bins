@@ -34,19 +34,21 @@ export async function POST(req: Request) {
   const supabase = getSupabaseAdmin();
   const { data: contacts, error: contactsErr } = await supabase
     .from('bin_claim_contacts')
-    .select('email, phone, activated_at')
+    .select('id, email, phone, activated_at')
     .eq('bin_id', binId)
     .eq('role', body.role);
   if (contactsErr) return new NextResponse(contactsErr.message, { status: 500 });
   if (!contacts || contacts.length === 0) return new NextResponse('Not allowed', { status: 403 });
 
-  const allowedTargets = contacts
-    .filter((c) => !c.activated_at)
+  const inactiveContacts = contacts.filter((c) => !c.activated_at);
+  const allowedTargets = inactiveContacts
     .flatMap((c) => [
-      c.phone ? { type: 'phone' as const, value: String(c.phone) } : null,
-      c.email ? { type: 'email' as const, value: String(c.email).toLowerCase() } : null,
+      c.phone ? { type: 'phone' as const, value: String(c.phone), contactId: String(c.id) } : null,
+      c.email
+        ? { type: 'email' as const, value: String(c.email).toLowerCase(), contactId: String(c.id) }
+        : null,
     ])
-    .filter((x): x is { type: 'phone' | 'email'; value: string } => Boolean(x));
+    .filter((x): x is { type: 'phone' | 'email'; value: string; contactId: string } => Boolean(x));
 
   if (allowedTargets.length === 0) {
     return new NextResponse('Already activated', { status: 409 });
@@ -62,18 +64,20 @@ export async function POST(req: Request) {
   const locale = getLocaleFromHeaders(req.headers);
   const targetsToSend =
     contactType && contactValue
-      ? [{ type: contactType as 'email' | 'phone', value: contactValue }]
+      ? allowedTargets.filter((t) => t.type === contactType && t.value === contactValue)
       : allowedTargets;
 
   const created: string[] = [];
-  const codesByTarget = new Map<string, string>();
+  const codesByContact = new Map<string, string>();
   for (const t of targetsToSend) {
-    const perTargetCode = randomNumericCode(6);
-    codesByTarget.set(`${t.type}:${t.value}`, perTargetCode);
-    const codeHash = sha256Base64Url(`${perTargetCode}:${binId}:${body.role}:${t.type}:${t.value}`);
+    const perContactCode = codesByContact.get(t.contactId) ?? randomNumericCode(6);
+    codesByContact.set(t.contactId, perContactCode);
+
+    const codeHash = sha256Base64Url(`${perContactCode}:${binId}:${body.role}:${t.type}:${t.value}`);
     const { data: verification, error } = await supabase
       .from('contact_verifications')
       .insert({
+        contact_id: t.contactId,
         bin_id: binId,
         role: body.role,
         contact_type: t.type,
@@ -93,8 +97,8 @@ export async function POST(req: Request) {
     const results = await Promise.allSettled(
       targetsToSend.map((t) =>
         (() => {
-          const c = codesByTarget.get(`${t.type}:${t.value}`);
-          if (!c) throw new Error('Missing per-target code');
+          const c = codesByContact.get(t.contactId);
+          if (!c) throw new Error('Missing per-contact code');
           return deliverOtp({
             target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
             code: c,
@@ -118,7 +122,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         verificationIds: created,
-        devCode: codesByTarget.values().next().value ?? null,
+        devCode: codesByContact.values().next().value ?? null,
         warning: msg,
       });
     }
@@ -133,6 +137,6 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     verificationIds: created,
-    devCode: includeCode ? codesByTarget.values().next().value ?? null : undefined,
+    devCode: includeCode ? codesByContact.values().next().value ?? null : undefined,
   });
 }
