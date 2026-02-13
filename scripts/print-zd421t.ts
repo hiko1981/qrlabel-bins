@@ -14,6 +14,7 @@ const Args = z.object({
   address: z.string().optional(),
   debugPng: z.string().optional(),
   dryRun: z.coerce.boolean().optional(),
+  configurePrinter: z.coerce.boolean().optional(),
 });
 
 function mmToDots(mm: number, dpi: number) {
@@ -110,7 +111,7 @@ async function main() {
       .map(([k, v]) => [k?.replace(/^--/, ''), v ?? '']),
   );
 
-  const { ip, token, port, widthMm, heightMm, dpi } = Args.parse({
+  const { ip, token, port, widthMm, heightMm, dpi, configurePrinter } = Args.parse({
     ip: argv.ip,
     token: argv.token,
     port: argv.port,
@@ -121,6 +122,7 @@ async function main() {
     address: argv.address,
     debugPng: argv.debugPng,
     dryRun: argv.dryRun,
+    configurePrinter: argv.configurePrinter,
   });
 
   if (argv.title) process.env.QRLABEL_PRINT_TITLE = String(argv.title);
@@ -128,6 +130,15 @@ async function main() {
 
   const width = mmToDots(widthMm, dpi);
   const height = mmToDots(heightMm, dpi);
+
+  if (configurePrinter) {
+    // Best-effort: align printer defaults with the label dimensions, to avoid split-across-two-labels issues.
+    await tcpRoundtrip(
+      ip,
+      port,
+      `! U1 setvar "zpl.print_width" "${width}"\r\n! U1 setvar "zpl.label_length" "${height}"\r\n`,
+    ).catch(() => {});
+  }
 
   const bits = await buildLabelBitmap(token, width, height);
   const { bytesPerRow, data } = packBitsMsbFirst(bits, width, height);
@@ -172,6 +183,24 @@ function sendToPrinter(host: string, port: number, data: string) {
       });
     });
     socket.once('close', () => resolve());
+  });
+}
+
+function tcpRoundtrip(host: string, port: number, data: string) {
+  return new Promise<string>((resolve, reject) => {
+    const socket = new net.Socket();
+    let out = '';
+    socket.setTimeout(2500);
+    socket.once('error', reject);
+    socket.once('timeout', () => {
+      socket.destroy();
+      resolve(out);
+    });
+    socket.connect(port, host, () => {
+      socket.write(data, 'ascii', () => setTimeout(() => socket.end(), 250));
+    });
+    socket.on('data', (d) => (out += d.toString('utf8')));
+    socket.once('close', () => resolve(out));
   });
 }
 

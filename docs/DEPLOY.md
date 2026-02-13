@@ -122,6 +122,8 @@ Valgfrit:
   - `--debugPng=out/zd421t-preview.png --dryRun=true`
 - Status:
   - `pnpm run zebra:status -- --ip=<PRINTER_IP>`
+- Printer setup:
+  - `--configurePrinter=true` (sætter `zpl.print_width` + `zpl.label_length` for at undgå at print deles på flere labels)
 
 **MANUAL STEP:** Vælg og konfigurér en provider:
 
