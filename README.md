@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## QRLABEL Bins (Affaldsspand) — MVP
 
-## Getting Started
+Web-only scanning med WebAuthn/Passkeys (device-binding).
 
-First, run the development server:
+### Scan URLs
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Canonical scan: `https://qrlabel.one/k/<token>`
+- Redirect: `qrz.dk` → `qrlabel.one/k/<token>` (via `src/middleware.ts`)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Roller
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `public`: ingen passkey
+- `owner`: passkey
+- `worker`: passkey
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Lokal udvikling
 
-## Learn More
+1) Kopiér env:
 
-To learn more about Next.js, take a look at the following resources:
+`cp .env.example .env.local`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2) Start:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`pnpm dev`
 
-## Deploy on Vercel
+### Supabase schema
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Migrations ligger i `supabase/migrations`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Admin (MVP issuance)
+
+Alle admin endpoints kræver `x-admin-key: $ADMIN_API_KEY` eller `Authorization: Bearer $ADMIN_API_KEY`.
+
+- Opret spand + token: `POST /api/admin/create-bin` `{ "label": "...", "municipality": "..." }`
+- Udsted member + claim-link: `POST /api/admin/issue-member` `{ "binToken": "...", "role": "owner"|"worker" }`
+
+Claim-link åbnes på den enhed der skal bindes: `GET /claim/<claimToken>` → “Opret passkey”.
