@@ -9,9 +9,8 @@ export function middleware(req: NextRequest) {
   const host = stripPort(req.headers.get('host') ?? '');
   const url = req.nextUrl;
 
-  const isQrLabelEu = host === 'qrlabel.eu' || host === 'www.qrlabel.eu';
   const isQrx = host === 'qrx.dk' || host === 'www.qrx.dk';
-  const isRedirectHost = isQrLabelEu || isQrx;
+  const isRedirectHost = isQrx;
   if (!isRedirectHost) return NextResponse.next();
 
   const pathname = url.pathname;
@@ -27,8 +26,8 @@ export function middleware(req: NextRequest) {
     if (seg) token = seg;
   }
 
-  if (!token) return NextResponse.redirect(new URL('https://qrlabel.one/', req.url), 307);
-  return NextResponse.redirect(new URL(`/k/${encodeURIComponent(token)}`, 'https://qrlabel.one'), 307);
+  if (!token) return NextResponse.redirect(new URL('https://qrlabel.eu/', req.url), 307);
+  return NextResponse.redirect(new URL(`/k/${encodeURIComponent(token)}`, 'https://qrlabel.eu'), 307);
 }
 
 export const config = {

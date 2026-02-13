@@ -3,9 +3,9 @@
 ## Domains
 
 **Product domain:** `qrlabel.one`  
-**QR label domain:** `qrlabel.eu` (redirects to `qrlabel.one`)
+**QR label domain:** `qrlabel.eu`
 
-**MANUAL STEP:** Add `qrlabel.eu` as a domain on the Vercel project, and configure DNS to point it to this Vercel project. The redirect behavior for `qrlabel.eu` is implemented in `src/middleware.ts`.
+`qrlabel.eu` should point directly to this Vercel project (serving `/k/<token>`, `/label/<token>`, and the QR download endpoints).
 
 ### DNS records (recommended quick setup)
 

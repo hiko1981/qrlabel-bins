@@ -7,8 +7,8 @@ import { getFromMemory, setInMemory } from '@/lib/qr/cache';
 
 const SIZE = 1024;
 const MARGIN = 4;
-const LOGO_RATIO = 0.2;
-const PLATE_RATIO = 0.28;
+const LOGO_RATIO = 0.17;
+const PLATE_RATIO = 0.24;
 const QR_LABEL_HOST = 'qrlabel.eu';
 
 function tokenToUrl(token: string) {
@@ -38,14 +38,28 @@ async function getLogoPng() {
   return fs.readFile(logoPath);
 }
 
-function plateSvg(size: number) {
-  const plate = Math.round(size * PLATE_RATIO);
-  const x = Math.round((size - plate) / 2);
-  const y = Math.round((size - plate) / 2);
+function plateSvgAt(x: number, y: number, plate: number) {
   const rx = Math.round(plate * 0.18);
   return Buffer.from(
-    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><rect x="${x}" y="${y}" width="${plate}" height="${plate}" rx="${rx}" fill="#ffffff"/></svg>`,
+    `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg"><rect x="${x}" y="${y}" width="${plate}" height="${plate}" rx="${rx}" fill="#ffffff"/></svg>`,
   );
+}
+
+function computeQrRasterSizing(encodedUrl: string) {
+  const qr = QRCode.create(encodedUrl, { errorCorrectionLevel: 'H' });
+  const moduleCount = qr.modules.size;
+  const totalModules = moduleCount + MARGIN * 2;
+  const scale = Math.max(1, Math.floor(SIZE / totalModules));
+  const qrSize = totalModules * scale;
+
+  const padStart = Math.floor((SIZE - qrSize) / 2);
+  const padEnd = SIZE - qrSize - padStart;
+
+  return { scale, qrSize, padStart, padEnd };
+}
+
+function roundToModule(px: number, modulePx: number) {
+  return Math.max(modulePx, Math.round(px / modulePx) * modulePx);
 }
 
 export async function generateQrPngForToken(token: string) {
@@ -61,27 +75,41 @@ export async function generateQrPngForToken(token: string) {
   }
 
   const url = tokenToUrl(token);
+  const { scale, qrSize, padStart, padEnd } = computeQrRasterSizing(url);
+
   const base = await QRCode.toBuffer(url, {
     type: 'png',
-    width: SIZE,
+    scale,
     margin: MARGIN,
     errorCorrectionLevel: 'H',
     color: { dark: '#0f172a', light: '#ffffff' },
   });
 
-  const logoSize = Math.round(SIZE * LOGO_RATIO);
-  const logoLeft = Math.round((SIZE - logoSize) / 2);
-  const logoTop = Math.round((SIZE - logoSize) / 2);
+  const modulePx = scale;
+  const plateSize = roundToModule(qrSize * PLATE_RATIO, modulePx);
+  const logoSize = roundToModule(qrSize * LOGO_RATIO, modulePx);
+
+  const centerLeft = padStart + Math.round((qrSize - logoSize) / 2);
+  const centerTop = padStart + Math.round((qrSize - logoSize) / 2);
+  const plateLeft = padStart + Math.round((qrSize - plateSize) / 2);
+  const plateTop = padStart + Math.round((qrSize - plateSize) / 2);
 
   const [logoPng, plated] = await Promise.all([
     getLogoPng().then((buf) => sharp(buf).resize(logoSize, logoSize, { fit: 'contain' }).png().toBuffer()),
-    Promise.resolve(plateSvg(SIZE)),
+    Promise.resolve(plateSvgAt(plateLeft, plateTop, plateSize)),
   ]);
 
   const out = await sharp(base)
+    .extend({
+      top: padStart,
+      bottom: padEnd,
+      left: padStart,
+      right: padEnd,
+      background: '#ffffff',
+    })
     .composite([
       { input: plated, top: 0, left: 0 },
-      { input: logoPng, top: logoTop, left: logoLeft },
+      { input: logoPng, top: centerTop, left: centerLeft },
     ])
     .png({ compressionLevel: 9 })
     .toBuffer();
@@ -141,9 +169,10 @@ export async function generateQrSvgForToken(token: string) {
 }
 
 export function getQrMeta(token: string) {
+  const encoded = tokenToUrl(token);
   return {
     token,
-    encoded_url: tokenToUrl(token),
-    canonical_url: `https://qrlabel.one/k/${token}`,
+    encoded_url: encoded,
+    canonical_url: encoded,
   };
 }

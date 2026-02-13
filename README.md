@@ -6,7 +6,7 @@ Web-only scanning med WebAuthn/Passkeys (device-binding).
 
 - Canonical scan: `https://qrlabel.one/k/<token>`
 - QR label URL: `https://qrlabel.eu/k/<locator_token>`
-- Redirect: `qrlabel.eu/*` → `qrlabel.one/k/<token>` (via `src/middleware.ts`)
+- `qrx.dk/*` → `qrlabel.eu/k/<token>` (via `src/middleware.ts`)
 
 ### Roller
 
