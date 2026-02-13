@@ -5,7 +5,7 @@ import { getBinIdByToken } from '@/lib/data';
 import { getLocaleFromHeaders } from '@/lib/i18n';
 import { sha256Base64Url } from '@/lib/crypto';
 import { deliverOtp } from '@/lib/otpDelivery';
-import { getOtpWindow, otpCodeForContact } from '@/lib/otp';
+import { getOtpExpiresAt, otpCodeFromSeed, otpCodeForContactLegacy, randomOtpSeed } from '@/lib/otp';
 
 const Body = z.object({
   binToken: z.string().min(6),
@@ -105,8 +105,7 @@ export async function POST(req: Request) {
     if (!ok) return new NextResponse('Not allowed', { status: 403 });
   }
 
-  const otpWindow = getOtpWindow();
-  const expiresAt = otpWindow.windowEnd.toISOString();
+  const expiresAt = getOtpExpiresAt().toISOString();
 
   const locale = getLocaleFromHeaders(req.headers);
   const targetsToSend =
@@ -115,19 +114,14 @@ export async function POST(req: Request) {
       : allowedTargets;
 
   const created: string[] = [];
-  const codesByContact = new Map<string, string>();
+  const codesByTarget = new Map<string, string>();
   for (const t of targetsToSend) {
-    const perContactCode =
-      codesByContact.get(t.contactId) ??
-      otpCodeForContact({ contactId: t.contactId, binId, role: body.role, now: new Date() });
-    codesByContact.set(t.contactId, perContactCode);
-
-    const codeHash = sha256Base64Url(`${perContactCode}:${binId}:${body.role}:${t.type}:${t.value}`);
+    const targetKey = `${t.contactId}:${t.type}:${t.value}`;
 
     // Idempotency: reuse an active verification in the current OTP window.
     const { data: existing } = await supabase
       .from('contact_verifications')
-      .select('id,expires_at,consumed_at')
+      .select('id,expires_at,consumed_at,code_seed')
       .eq('contact_id', t.contactId)
       .eq('bin_id', binId)
       .eq('role', body.role)
@@ -138,10 +132,50 @@ export async function POST(req: Request) {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // Stable resend: if a usable verification exists, reuse its seed (or retrofit a seed) and do NOT create a new row.
     if (existing?.id) {
+      let seed = (existing as any).code_seed as string | null | undefined;
+      if (!seed) {
+        seed = randomOtpSeed();
+        const code = otpCodeFromSeed({
+          seed,
+          binId,
+          role: body.role,
+          contactType: t.type,
+          contactValue: t.value,
+        });
+        const codeHash = sha256Base64Url(`${code}:${binId}:${body.role}:${t.type}:${t.value}`);
+        await supabase
+          .from('contact_verifications')
+          .update({ code_seed: seed, code_hash: codeHash, expires_at: expiresAt, attempts: 0 })
+          .eq('id', existing.id)
+          .is('consumed_at', null);
+        codesByTarget.set(targetKey, code);
+      } else {
+        const code = otpCodeFromSeed({
+          seed,
+          binId,
+          role: body.role,
+          contactType: t.type,
+          contactValue: t.value,
+        });
+        codesByTarget.set(targetKey, code);
+      }
       created.push(existing.id);
       continue;
     }
+
+    const seed = randomOtpSeed();
+    const code = otpCodeFromSeed({
+      seed,
+      binId,
+      role: body.role,
+      contactType: t.type,
+      contactValue: t.value,
+    });
+    codesByTarget.set(targetKey, code);
+    const codeHash = sha256Base64Url(`${code}:${binId}:${body.role}:${t.type}:${t.value}`);
 
     const { data: verification, error } = await supabase
       .from('contact_verifications')
@@ -151,6 +185,7 @@ export async function POST(req: Request) {
         role: body.role,
         contact_type: t.type,
         contact_value: t.value,
+        code_seed: seed,
         code_hash: codeHash,
         expires_at: expiresAt,
         user_agent: req.headers.get('user-agent'),
@@ -166,8 +201,9 @@ export async function POST(req: Request) {
     const results = await Promise.allSettled(
       targetsToSend.map((t) =>
         (() => {
-          const c = codesByContact.get(t.contactId);
-          if (!c) throw new Error('Missing per-contact code');
+          const c =
+            codesByTarget.get(`${t.contactId}:${t.type}:${t.value}`) ??
+            otpCodeForContactLegacy({ contactId: t.contactId, binId, role: body.role, now: new Date() });
           return deliverOtp({
             target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
             code: c,
@@ -191,7 +227,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         verificationIds: created,
-        devCode: codesByContact.values().next().value ?? null,
+        devCode: codesByTarget.values().next().value ?? null,
         warning: msg,
       });
     }
@@ -206,6 +242,6 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     verificationIds: created,
-    devCode: includeCode ? codesByContact.values().next().value ?? null : undefined,
+    devCode: includeCode ? codesByTarget.values().next().value ?? null : undefined,
   });
 }
