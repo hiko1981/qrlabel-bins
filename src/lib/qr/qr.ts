@@ -34,8 +34,13 @@ async function writeBestEffort(filePath: string, data: Buffer) {
 }
 
 async function getLogoPng() {
-  const logoPath = path.join(process.cwd(), 'public', 'brand', 'avira-mark.png');
-  return fs.readFile(logoPath);
+  const primary = path.join(process.cwd(), 'public', 'brand', 'bin-marker.png');
+  const fallback = path.join(process.cwd(), 'public', 'brand', 'avira-mark.png');
+  try {
+    return await fs.readFile(primary);
+  } catch {
+    return fs.readFile(fallback);
+  }
 }
 
 function plateSvgAt(x: number, y: number, plate: number) {
