@@ -118,6 +118,8 @@ Valgfrit:
 - `--port=9100`
 - `--widthMm=102 --heightMm=152 --dpi=203`
 - `--title="Madaffald" --address="Ringstedgade 146, 4700 Næstved"`
+- Debug:
+  - `--debugPng=out/zd421t-preview.png --dryRun=true`
 
 **MANUAL STEP:** Vælg og konfigurér en provider:
 

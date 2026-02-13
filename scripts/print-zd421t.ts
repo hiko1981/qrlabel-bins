@@ -12,6 +12,8 @@ const Args = z.object({
   dpi: z.coerce.number().int().positive().default(203),
   title: z.string().optional(),
   address: z.string().optional(),
+  debugPng: z.string().optional(),
+  dryRun: z.coerce.boolean().optional(),
 });
 
 function mmToDots(mm: number, dpi: number) {
@@ -45,7 +47,6 @@ async function buildLabelBitmap(token: string, width: number, height: number) {
 
   const svg = `
   <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100%" height="100%" fill="#ffffff"/>
     <text x="${width / 2}" y="${qrTop + qrSize + Math.round(height * 0.08)}" text-anchor="middle"
       font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(height * 0.045)}" font-weight="700" fill="#0f172a">${escapeXml(
         title,
@@ -69,8 +70,8 @@ async function buildLabelBitmap(token: string, width: number, height: number) {
     },
   })
     .composite([
-      { input: qrResized, top: qrTop, left: qrLeft },
       { input: Buffer.from(svg), top: 0, left: 0 },
+      { input: qrResized, top: qrTop, left: qrLeft },
     ])
     .grayscale()
     .threshold(180) // 0/255
@@ -111,6 +112,8 @@ async function main() {
     dpi: argv.dpi,
     title: argv.title,
     address: argv.address,
+    debugPng: argv.debugPng,
+    dryRun: argv.dryRun,
   });
 
   if (argv.title) process.env.QRLABEL_PRINT_TITLE = String(argv.title);
@@ -126,6 +129,27 @@ async function main() {
   const zpl = `^XA^PW${width}^LL${height}^FO0,0^GFA,${totalBytes},${totalBytes},${bytesPerRow},${toHex(
     data,
   )}^FS^XZ`;
+
+  if (argv.debugPng) {
+    // Recreate a preview image (black/white) from the packed bits
+    const bytesPerRowLocal = bytesPerRow;
+    const preview = Buffer.alloc(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const byteIndex = y * bytesPerRowLocal + (x >> 3);
+        const mask = 0x80 >> (x & 7);
+        const isBlack = (data[byteIndex]! & mask) !== 0;
+        preview[y * width + x] = isBlack ? 0 : 255;
+      }
+    }
+    await sharp(preview, { raw: { width, height, channels: 1 } }).png().toFile(String(argv.debugPng));
+    console.log(`Wrote preview PNG: ${argv.debugPng}`);
+  }
+
+  if (argv.dryRun) {
+    console.log(`Dry-run: would print token=${token} to ${ip}:${port} (${width}x${height} dots @ ${dpi}dpi)`);
+    return;
+  }
 
   await sendToPrinter(ip, port, zpl);
   console.log(`OK printed token=${token} to ${ip}:${port} (${width}x${height} dots @ ${dpi}dpi)`);
