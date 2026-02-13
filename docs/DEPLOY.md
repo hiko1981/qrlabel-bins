@@ -41,13 +41,15 @@ Når protection er slået fra skal disse virke offentligt:
 
 ## Vercel domain alias (`*.vercel.app`)
 
-Hvis `https://qrlabel-bins.vercel.app/` giver 404, så er domænet ikke korrekt aliased til projektet.
+For team-projekter er standard-domænet typisk `https://qrlabel-bins-hikmet-altuns-projects.vercel.app/`.
+
+Hvis du prøver `https://qrlabel-bins.vercel.app/` og får 404, så er det domæne sandsynligvis ikke tilgængeligt/owned i teamet.
 
 **MANUAL STEP:**
 1) Vercel Dashboard → `hikmet-altuns-projects` → `qrlabel-bins`
 2) `Settings` → `Domains`
-3) Sikr at `qrlabel-bins.vercel.app` står på listen og peger på dette projekt
-4) Hvis den mangler: tilføj domænet eller brug en anden `*.vercel.app` URL der er listet under deployment “Aliases”
+3) Brug `qrlabel-bins-hikmet-altuns-projects.vercel.app` som den sikre `*.vercel.app` URL
+4) Alternativt: brug den seneste production deployment URL (står i Vercel deployment “Aliases”)
 
 ## Smoke test (after protection is off)
 
