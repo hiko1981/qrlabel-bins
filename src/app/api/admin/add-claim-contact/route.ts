@@ -33,33 +33,66 @@ export async function POST(req: Request) {
       })()
     : null;
 
-  // Merge into existing contact if possible (so email+phone for same owner stays on one row => same OTP).
-  const { data: existing, error: findErr } = await supabase
-    .from('bin_claim_contacts')
-    .select('id,email,phone')
-    .eq('bin_id', binId)
-    .eq('role', body.role)
-    .or(
-      [
-        email ? `email.eq.${email}` : null,
-        phone ? `phone.eq.${phone}` : null,
-      ]
-        .filter(Boolean)
-        .join(','),
-    )
-    .maybeSingle();
-  if (findErr) return new NextResponse(findErr.message, { status: 500 });
+  // Merge/update deterministically (avoid maybeSingle errors when duplicates exist).
+  const emailRows = email
+    ? (
+        await supabase
+          .from('bin_claim_contacts')
+          .select('id,email,phone,activated_at,activated_user_id')
+          .eq('bin_id', binId)
+          .eq('role', body.role)
+          .eq('email', email)
+          .order('created_at', { ascending: true })
+      ).data ?? []
+    : [];
 
-  if (existing?.id) {
-    const { error: updErr } = await supabase
+  const phoneRows = phone
+    ? (
+        await supabase
+          .from('bin_claim_contacts')
+          .select('id,email,phone,activated_at,activated_user_id')
+          .eq('bin_id', binId)
+          .eq('role', body.role)
+          .eq('phone', phone)
+          .order('created_at', { ascending: true })
+      ).data ?? []
+    : [];
+
+  const primary = (emailRows[0] ?? phoneRows[0]) as
+    | { id: string; email: string | null; phone: string | null; activated_at: string | null; activated_user_id: string | null }
+    | undefined;
+
+  // If both an email-row and phone-row exist (different ids), merge them into the email-row (or primary).
+  if (primary) {
+    const related = new Map<string, typeof primary>();
+    for (const r of [...emailRows, ...phoneRows] as any[]) related.set(String(r.id), r);
+
+    const hasActivationMismatch = (() => {
+      const rows = Array.from(related.values());
+      if (rows.length <= 1) return false;
+      const key0 = `${rows[0]?.activated_at ?? ''}:${rows[0]?.activated_user_id ?? ''}`;
+      return rows.some((r) => `${r.activated_at ?? ''}:${r.activated_user_id ?? ''}` !== key0);
+    })();
+    if (hasActivationMismatch) {
+      return new NextResponse('Duplicate contacts with different activation state; cleanup required', { status: 409 });
+    }
+
+    const nextEmail = email ?? primary.email ?? null;
+    const nextPhone = phone ?? primary.phone ?? null;
+
+    // Delete other rows first to avoid unique index conflicts.
+    const idsToDelete = Array.from(related.keys()).filter((id) => id !== primary.id);
+    if (idsToDelete.length > 0) {
+      const del = await supabase.from('bin_claim_contacts').delete().in('id', idsToDelete);
+      if (del.error) return new NextResponse(del.error.message, { status: 500 });
+    }
+
+    const upd = await supabase
       .from('bin_claim_contacts')
-      .update({
-        email: email ?? existing.email ?? null,
-        phone: phone ?? existing.phone ?? null,
-      })
-      .eq('id', existing.id);
-    if (updErr) return new NextResponse(updErr.message, { status: 500 });
-    return NextResponse.json({ ok: true, merged: true });
+      .update({ email: nextEmail, phone: nextPhone })
+      .eq('id', primary.id);
+    if (upd.error) return new NextResponse(upd.error.message, { status: 500 });
+    return NextResponse.json({ ok: true, merged: related.size > 1 });
   }
 
   const { error: insErr } = await supabase.from('bin_claim_contacts').insert({
