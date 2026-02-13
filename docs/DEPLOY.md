@@ -99,6 +99,16 @@ Sæt disse env vars på Vercel (Production + Preview):
 - Email (Resend): `RESEND_API_KEY`, `RESEND_FROM`
 - SMS (Twilio): `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
 
+### Resend domain (`qrlabel.eu`)
+
+Resend domænet `qrlabel.eu` er oprettet. Tilføj disse DNS-records i one.com, og vent til domænet bliver Verified i Resend:
+
+- `TXT resend._domainkey.qrlabel.eu` → (DKIM public key fra Resend)
+- `MX send.qrlabel.eu` priority `10` → `feedback-smtp.us-east-1.amazonses.com`
+- `TXT send.qrlabel.eu` → `v=spf1 include:amazonses.com ~all`
+
+Når Verified: sæt `RESEND_FROM` til fx `QRLabel <info@qrlabel.eu>`.
+
 ## Admin bootstrap (OTP + passkey)
 
 Admin kan logge ind uden `x-admin-key` via `/admin/login`.
