@@ -11,6 +11,7 @@ export function AdminLogin() {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authed, setAuthed] = useState(false);
   const locale = useMemo(() => (typeof navigator !== 'undefined' ? navigator.language : null), []);
 
   async function sendCode() {
@@ -45,8 +46,8 @@ export function AdminLogin() {
         body: JSON.stringify({ verificationId, code }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { redirectTo?: string };
-      window.location.assign(data.redirectTo ?? '/admin/labels');
+      await res.json().catch(() => ({}));
+      setAuthed(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -157,16 +158,23 @@ export function AdminLogin() {
             className="w-full rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => verifyCode()}
           >
-            Verificér
+            Verificér og log ind
           </button>
-          <button
-            type="button"
-            disabled={busy}
-            className="w-full rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-            onClick={() => registerPasskey()}
-          >
-            Registrér passkey (anbefalet)
-          </button>
+          {authed ? (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                className="w-full rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
+                onClick={() => registerPasskey()}
+              >
+                Registrér passkey (anbefalet)
+              </button>
+              <Link className="block text-center text-sm underline" href="/admin/labels">
+                Gå til admin
+              </Link>
+            </>
+          ) : null}
         </div>
       )}
 
@@ -185,4 +193,3 @@ export function AdminLogin() {
     </div>
   );
 }
-

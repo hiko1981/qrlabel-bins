@@ -16,7 +16,15 @@ const Body = z.object({
 export async function POST(req: Request) {
   const body = Body.parse(await req.json());
   const email = body.email?.toLowerCase();
-  const phone = body.phone;
+  const phoneRaw = body.phone;
+  const phone = phoneRaw
+    ? (() => {
+        const digits = phoneRaw.replace(/[^\d+]/g, '');
+        const onlyDigits = digits.startsWith('+') ? digits.slice(1) : digits;
+        if (onlyDigits.startsWith('45') && onlyDigits.length === 10) return onlyDigits.slice(2);
+        return onlyDigits;
+      })()
+    : undefined;
   const contactType = email ? 'email' : 'phone';
   const contactValue = email ?? phone;
   if (!contactValue) return new NextResponse('email or phone required', { status: 400 });

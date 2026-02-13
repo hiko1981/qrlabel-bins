@@ -17,7 +17,13 @@ export function isAllowedAdminEmail(email: string) {
 
 export function isAllowedAdminPhone(phone: string) {
   const list = parseList(getOptionalEnv('ADMIN_BOOTSTRAP_PHONES'));
-  const normalized = phone.replace(/\s+/g, '');
-  return list.map((p) => p.replace(/\s+/g, '')).includes(normalized);
+  const norm = (v: string) => {
+    const digits = v.replace(/[^\d+]/g, '');
+    const onlyDigits = digits.startsWith('+') ? digits.slice(1) : digits;
+    // Allow DK numbers entered as +45xxxxxxxx or 45xxxxxxxx
+    if (onlyDigits.startsWith('45') && onlyDigits.length === 10) return onlyDigits.slice(2);
+    return onlyDigits;
+  };
+  const normalized = norm(phone);
+  return list.map(norm).includes(normalized);
 }
-
