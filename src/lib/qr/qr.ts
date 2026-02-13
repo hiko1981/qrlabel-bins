@@ -7,16 +7,17 @@ import { getFromMemory, setInMemory } from '@/lib/qr/cache';
 
 const SIZE = 1024;
 const MARGIN = 4;
-const LOGO_RATIO = 0.17;
-const PLATE_RATIO = 0.24;
+const LOGO_RATIO = 0.21;
+const PLATE_RATIO = 0.28;
 const QR_LABEL_HOST = 'qrlabel.eu';
+const QR_STYLE_VERSION = 'v3';
 
 function tokenToUrl(token: string) {
   return `https://${QR_LABEL_HOST}/k/${token}`;
 }
 
 function tmpPath(token: string, ext: 'png' | 'svg') {
-  return path.join(os.tmpdir(), `qrlabel_qr_${QR_LABEL_HOST}_${token}.${ext}`);
+  return path.join(os.tmpdir(), `qrlabel_qr_${QR_LABEL_HOST}_${QR_STYLE_VERSION}_${token}.${ext}`);
 }
 
 async function readIfExists(filePath: string) {
@@ -68,7 +69,7 @@ function roundToModule(px: number, modulePx: number) {
 }
 
 export async function generateQrPngForToken(token: string) {
-  const cacheKey = `png:${QR_LABEL_HOST}:${token}`;
+  const cacheKey = `png:${QR_LABEL_HOST}:${QR_STYLE_VERSION}:${token}`;
   const cached = getFromMemory(cacheKey);
   if (cached) return cached;
 
@@ -127,7 +128,7 @@ export async function generateQrPngForToken(token: string) {
 }
 
 export async function generateQrSvgForToken(token: string) {
-  const cacheKey = `svg:${QR_LABEL_HOST}:${token}`;
+  const cacheKey = `svg:${QR_LABEL_HOST}:${QR_STYLE_VERSION}:${token}`;
   const cached = getFromMemory(cacheKey);
   if (cached) return cached;
 

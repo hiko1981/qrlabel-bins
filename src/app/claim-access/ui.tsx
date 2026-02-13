@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useWebOtp } from '@/components/useWebOtp';
 
 export function ClaimAccess() {
   const searchParams = useSearchParams();
@@ -17,6 +18,11 @@ export function ClaimAccess() {
   const [error, setError] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useWebOtp({
+    enabled: Boolean(verificationId),
+    onCode: (c) => setCode(c),
+  });
 
   async function start() {
     setError(null);
@@ -124,6 +130,8 @@ export function ClaimAccess() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="6-cifret kode"
+              inputMode="numeric"
+              autoComplete="one-time-code"
             />
           </label>
           <button

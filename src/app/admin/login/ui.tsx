@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import { useWebOtp } from '@/components/useWebOtp';
 
 export function AdminLogin() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -14,6 +15,11 @@ export function AdminLogin() {
   const [error, setError] = useState<string | null>(null);
   const [authed, setAuthed] = useState(false);
   const locale = useMemo(() => (typeof navigator !== 'undefined' ? navigator.language : null), []);
+
+  useWebOtp({
+    enabled: Boolean(verificationId),
+    onCode: (c) => setCode(c),
+  });
 
   async function sendCode() {
     setError(null);
@@ -162,6 +168,8 @@ export function AdminLogin() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="6-cifret kode"
+            inputMode="numeric"
+            autoComplete="one-time-code"
           />
           <button
             type="button"
