@@ -12,7 +12,10 @@ export async function generateLabelPdfBytes(params: { token: string; count?: num
   const { token } = params;
   const count = params.count;
 
-  const bin = await getBinByToken(token);
+  let bin: Awaited<ReturnType<typeof getBinByToken>> = null;
+  try {
+    bin = await getBinByToken(token);
+  } catch {}
   const qr = await generateQrPngForToken(token);
 
   const pdf = await PDFDocument.create();
@@ -41,7 +44,7 @@ export async function generateLabelPdfBytes(params: { token: string; count?: num
       page.drawText(addr, { x: 48, y: 54, size: 12, font, color: rgb(0.25, 0.25, 0.28) });
     }
 
-    page.drawText('Scan for info · qrlabel.one', {
+    page.drawText('Scan for info · qrlabel.eu', {
       x: 48,
       y: 32,
       size: 10,
@@ -77,4 +80,3 @@ export async function generateLabelPdfBytes(params: { token: string; count?: num
   const out = await pdf.save();
   return Buffer.from(out);
 }
-

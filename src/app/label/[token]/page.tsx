@@ -10,7 +10,10 @@ import { generateQrPngForToken } from '@/lib/qr/qr';
 export default async function LabelPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const meta = getQrMeta(token);
-  const bin = await getBinByToken(token);
+  let bin: Awaited<ReturnType<typeof getBinByToken>> = null;
+  try {
+    bin = await getBinByToken(token);
+  } catch {}
   const locale = getLocaleFromHeaders(await headers());
   const qr = await generateQrPngForToken(token);
   const qrDataUrl = `data:${qr.contentType};base64,${qr.body.toString('base64')}`;
@@ -42,7 +45,7 @@ export default async function LabelPage({ params }: { params: Promise<{ token: s
             priority
           />
           <div className="mt-4 text-center text-sm text-neutral-700">
-            {t(locale, 'scanForInfo')} · <span className="font-mono">qrlabel.one</span>
+            {t(locale, 'scanForInfo')} · <span className="font-mono">qrlabel.eu</span>
           </div>
         </div>
 
