@@ -19,14 +19,7 @@ function ensureConfigured() {
 }
 
 export async function dispatchPushForEvent(args: DispatchArgs) {
-  ensureConfigured();
   const supabase = getSupabaseAdmin();
-
-  const { data: subs, error } = await supabase
-    .from('push_subscriptions')
-    .select('endpoint,p256dh,auth,principal_id,role,revoked_at')
-    .is('revoked_at', null);
-  if (error || !subs) return;
 
   // Filter to owners that are members of this bin
   const { data: ownerMembers, error: memErr } = await supabase
@@ -57,39 +50,58 @@ export async function dispatchPushForEvent(args: DispatchArgs) {
     Array.from(ownerIds).filter((id) => (prefsMap.get(id)?.pushEnabled ?? true) === true),
   );
 
-  const targets = (subs ?? []).filter((s) => s.role === 'owner' && pushAllowedOwnerIds.has(s.principal_id));
-
-  const payload = JSON.stringify({
-    title: 'QRLABEL Bins',
-    body: messageBody(args.eventType, args.locale),
-    url: args.url || 'https://qrlabel.eu/owner',
-    eventType: args.eventType,
-  });
-
   const pushedTo = new Set<string>();
-  await Promise.all(
-    targets.map(async (s) => {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: s.endpoint,
-            keys: { p256dh: s.p256dh, auth: s.auth },
-          },
-          payload,
-        );
-        pushedTo.add(s.principal_id);
-      } catch (e: unknown) {
-        // Auto-revoke invalid subscriptions
-        const statusCode = typeof e === 'object' && e && 'statusCode' in e ? (e as { statusCode?: number }).statusCode : undefined;
-        if (statusCode === 404 || statusCode === 410) {
-          await supabase
-            .from('push_subscriptions')
-            .update({ revoked_at: new Date().toISOString() })
-            .eq('endpoint', s.endpoint);
+
+  // Push (optional; if VAPID not configured we still allow SMS/email fallback)
+  let pushConfigured = true;
+  try {
+    ensureConfigured();
+  } catch {
+    pushConfigured = false;
+  }
+
+  if (pushConfigured) {
+    const { data: subs, error } = await supabase
+      .from('push_subscriptions')
+      .select('endpoint,p256dh,auth,principal_id,role,revoked_at')
+      .is('revoked_at', null);
+
+    const targets = (error ? [] : (subs ?? [])).filter(
+      (s) => s.role === 'owner' && pushAllowedOwnerIds.has(s.principal_id),
+    );
+
+    const payload = JSON.stringify({
+      title: 'QRLABEL Bins',
+      body: messageBody(args.eventType, args.locale),
+      url: args.url || 'https://qrlabel.eu/owner',
+      eventType: args.eventType,
+    });
+
+    await Promise.all(
+      targets.map(async (s) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: s.endpoint,
+              keys: { p256dh: s.p256dh, auth: s.auth },
+            },
+            payload,
+          );
+          pushedTo.add(s.principal_id);
+        } catch (e: unknown) {
+          // Auto-revoke invalid subscriptions
+          const statusCode =
+            typeof e === 'object' && e && 'statusCode' in e ? (e as { statusCode?: number }).statusCode : undefined;
+          if (statusCode === 404 || statusCode === 410) {
+            await supabase
+              .from('push_subscriptions')
+              .update({ revoked_at: new Date().toISOString() })
+              .eq('endpoint', s.endpoint);
+          }
         }
-      }
-    }),
-  );
+      }),
+    );
+  }
 
   // Fallback to SMS/email for owners that did not receive push (or have no subscriptions).
   const fallbackOwnerIds = Array.from(ownerIds).filter((id) => !pushedTo.has(id));
