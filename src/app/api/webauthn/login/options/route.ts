@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { fromBase64Url } from '@/lib/base64url';
 import { getRpIdFromHeaders } from '@/lib/webauthnServer';
 
 const Body = z.object({
@@ -42,13 +41,13 @@ export async function POST(req: Request) {
     rpID: getRpIdFromHeaders(req.headers),
     userVerification: 'required',
     allowCredentials: creds.map((c) => ({
-      id: fromBase64Url(c.credential_id),
-      type: 'public-key',
+      id: c.credential_id,
       transports: (c.transports ?? undefined) as any,
     })),
   });
 
-  cookies().set('webauthn_login_challenge', options.challenge, {
+  const jar = await cookies();
+  jar.set('webauthn_login_challenge', options.challenge, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -58,4 +57,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json(options);
 }
-

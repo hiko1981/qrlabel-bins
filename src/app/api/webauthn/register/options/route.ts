@@ -4,7 +4,6 @@ import { cookies } from 'next/headers';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getRpIdFromHeaders } from '@/lib/webauthnServer';
-import { fromBase64Url } from '@/lib/base64url';
 
 const Body = z.object({
   claimToken: z.string().min(10),
@@ -41,12 +40,13 @@ export async function POST(req: Request) {
       userVerification: 'required',
     },
     excludeCredentials: (existing ?? []).map((c) => ({
-      id: fromBase64Url(c.credential_id),
+      id: c.credential_id,
       type: 'public-key',
     })),
   });
 
-  cookies().set('webauthn_reg_challenge', options.challenge, {
+  const jar = await cookies();
+  jar.set('webauthn_reg_challenge', options.challenge, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -56,4 +56,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json(options);
 }
-

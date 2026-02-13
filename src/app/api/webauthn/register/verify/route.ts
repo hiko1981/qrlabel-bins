@@ -15,8 +15,9 @@ const Body = z.object({
 export async function POST(req: Request) {
   const body = Body.parse(await req.json());
 
-  const challenge = cookies().get('webauthn_reg_challenge')?.value;
-  cookies().set('webauthn_reg_challenge', '', { path: '/', maxAge: 0 });
+  const jar = await cookies();
+  const challenge = jar.get('webauthn_reg_challenge')?.value;
+  jar.set('webauthn_reg_challenge', '', { path: '/', maxAge: 0 });
   if (!challenge) return new NextResponse('Missing challenge', { status: 400 });
 
   const supabase = getSupabaseAdmin();
@@ -42,9 +43,10 @@ export async function POST(req: Request) {
     return new NextResponse('Registration failed', { status: 400 });
   }
 
-  const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
-  const credential_id = toBase64Url(credentialID);
-  const public_key = toBase64Url(credentialPublicKey);
+  const { credential } = verification.registrationInfo;
+  const credential_id = credential.id;
+  const public_key = toBase64Url(credential.publicKey);
+  const counter = credential.counter;
 
   const insert = await supabase.from('webauthn_credentials').insert({
     user_id: claim.user_id,
@@ -63,4 +65,3 @@ export async function POST(req: Request) {
   await setSession(claim.user_id);
   return NextResponse.json({ ok: true, redirectTo: `/k/${claim.bin_token}` });
 }
-

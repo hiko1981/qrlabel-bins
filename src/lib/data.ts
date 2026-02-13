@@ -15,11 +15,12 @@ export async function getBinByToken(token: string): Promise<Bin | null> {
     .select('token, bin:bins(id,label,municipality)')
     .eq('token', token)
     .maybeSingle();
-  if (error || !data || !data.bin) return null;
+  const bin = data?.bin ? (Array.isArray(data.bin) ? data.bin[0] : data.bin) : null;
+  if (error || !data || !bin) return null;
   return {
-    id: data.bin.id,
-    label: data.bin.label,
-    municipality: data.bin.municipality,
+    id: bin.id,
+    label: bin.label,
+    municipality: bin.municipality,
   };
 }
 
@@ -51,4 +52,3 @@ export async function getClaimInfo(claimToken: string) {
   if (error || !data) return null;
   return data;
 }
-

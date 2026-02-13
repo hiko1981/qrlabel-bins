@@ -16,8 +16,9 @@ const Body = z.object({
 export async function POST(req: Request) {
   const body = Body.parse(await req.json());
 
-  const challenge = cookies().get('webauthn_login_challenge')?.value;
-  cookies().set('webauthn_login_challenge', '', { path: '/', maxAge: 0 });
+  const jar = await cookies();
+  const challenge = jar.get('webauthn_login_challenge')?.value;
+  jar.set('webauthn_login_challenge', '', { path: '/', maxAge: 0 });
   if (!challenge) return new NextResponse('Missing challenge', { status: 400 });
 
   const credentialId = body.response?.id;
@@ -55,10 +56,10 @@ export async function POST(req: Request) {
     expectedChallenge: challenge,
     expectedOrigin: getExpectedOriginFromHeaders(req.headers),
     expectedRPID: getRpIdFromHeaders(req.headers),
-    authenticator: {
-      credentialID: fromBase64Url(cred.credential_id),
-      credentialPublicKey: fromBase64Url(cred.public_key),
-      counter: cred.counter ?? 0,
+    credential: {
+      id: cred.credential_id,
+      publicKey: fromBase64Url(cred.public_key),
+      counter: Number(cred.counter ?? 0),
       transports: (cred.transports ?? undefined) as any,
     },
   });
@@ -75,4 +76,3 @@ export async function POST(req: Request) {
   await setSession(cred.user_id);
   return NextResponse.json({ ok: true });
 }
-
