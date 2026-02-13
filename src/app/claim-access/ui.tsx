@@ -17,6 +17,7 @@ export function ClaimAccess({
 
   const [binToken] = useState(initialToken);
   const [awaitingCode, setAwaitingCode] = useState(false);
+  const [verificationIds, setVerificationIds] = useState<string[]>([]);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function ClaimAccess({
       });
       if (!res.ok) throw new Error(await res.text());
       const data = (await res.json()) as { verificationIds?: string[]; devCode?: string };
+      setVerificationIds(data.verificationIds ?? []);
       setDevCode(data.devCode ?? null);
       setAwaitingCode(true);
     } catch (e) {
@@ -62,13 +64,23 @@ export function ClaimAccess({
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch('/api/claim/verify', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code, binToken }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { claimToken: string; claimUrl?: string };
+      const idsToTry = verificationIds.length > 0 ? verificationIds : [undefined];
+      let data: { claimToken: string; claimUrl?: string } | null = null;
+      let lastErr: string | null = null;
+
+      for (const vid of idsToTry) {
+        const res = await fetch('/api/claim/verify', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ verificationId: vid, code, binToken }),
+        });
+        if (res.ok) {
+          data = (await res.json()) as { claimToken: string; claimUrl?: string };
+          break;
+        }
+        lastErr = await res.text().catch(() => 'Invalid code');
+      }
+      if (!data) throw new Error(lastErr || 'Invalid code');
 
       const optionsRes = await fetch('/api/webauthn/register/options', {
         method: 'POST',

@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       .select('id,contact_id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
       .eq('bin_id', tokenRow.bin_id)
       .order('created_at', { ascending: false })
-      .limit(25);
+      .limit(200);
     if (candErr || !candidates) return new NextResponse('Invalid verification', { status: 400 });
 
     for (const row of candidates as any[]) {
