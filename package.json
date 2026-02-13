@@ -7,13 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "verify:qr": "tsx scripts/verify-qr.ts"
+    "verify:qr": "tsx scripts/verify-qr.ts",
+    "smoke:qr": "tsx scripts/smoke-qr-endpoints.ts",
+    "smoke:local": "tsx scripts/smoke-local.ts"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.2.2",
     "@simplewebauthn/server": "^13.2.2",
     "@supabase/supabase-js": "^2.95.3",
     "jose": "^6.1.3",
+    "jszip": "^3.10.1",
     "next": "16.1.6",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",

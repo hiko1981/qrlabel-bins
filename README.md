@@ -51,9 +51,11 @@ Owners (og workers) kan aktivere notifikationer via `/owner` eller på `/k/<toke
 ### Print labels
 
 - Label page: `/label/<token>`
+- Public sample: `/labels/sample`
 - Assets:
   - `/api/qr/png?token=<token>`
   - `/api/qr/svg?token=<token>`
   - `/api/qr/pdf?token=<token>`
+  - `/api/qr/bundle?token=<token>` (zip)
 
 Admin labels UI: `/admin/labels` (indtast `ADMIN_API_KEY` i UI).

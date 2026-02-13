@@ -11,10 +11,13 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const { token } = Query.parse({ token: url.searchParams.get('token') });
   const asset = await generateQrPngForToken(token);
+
+  const filename = `qrlabel-bin-${token}.png`;
   return new NextResponse(bufferToReadableStream(asset.body), {
     headers: {
       'content-type': asset.contentType,
-      'cache-control': 'public, max-age=31536000, immutable',
+      'cache-control': 'public, max-age=86400',
+      'content-disposition': `attachment; filename="${filename}"`,
     },
   });
 }

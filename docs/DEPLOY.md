@@ -11,7 +11,22 @@
 
 Hvis du har Vercel Authentication / Deployment Protection slået til, vil public scanning (`/k/<token>`) ikke virke.
 
-**MANUAL STEP:** Slå protection fra for Production på Vercel-projektet (eller brug en official bypass automation token hvis du bevidst vil beholde protection).
+**MANUAL STEP (click-by-click):**
+1) Åbn Vercel Dashboard
+2) Vælg team/scope: `hikmet-altuns-projects`
+3) Åbn projektet: `qrlabel-bins`
+4) Gå til `Settings` → `Security`
+5) Find `Deployment Protection` / `Vercel Authentication` (navn kan variere)
+6) Slå protection **Off** for **Production**
+7) Gem ændringer
+
+Når protection er slået fra skal disse virke offentligt:
+- `/labels/sample`
+- `/label/<token>`
+- `/api/qr/png?token=<token>` (download)
+- `/api/qr/svg?token=<token>` (download)
+- `/api/qr/pdf?token=<token>` (download)
+- `/api/qr/bundle?token=<token>` (download zip)
 
 ## Supabase
 

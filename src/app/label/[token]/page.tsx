@@ -5,12 +5,15 @@ import { getBinByToken } from '@/lib/data';
 import { getQrMeta } from '@/lib/qr/qr';
 import { getLocaleFromHeaders } from '@/lib/i18n';
 import { t } from '@/lib/uiText';
+import { generateQrPngForToken } from '@/lib/qr/qr';
 
 export default async function LabelPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const meta = getQrMeta(token);
   const bin = await getBinByToken(token);
   const locale = getLocaleFromHeaders(await headers());
+  const qr = await generateQrPngForToken(token);
+  const qrDataUrl = `data:${qr.contentType};base64,${qr.body.toString('base64')}`;
 
   const address = [bin?.addressLine1, [bin?.postalCode, bin?.city].filter(Boolean).join(' '), bin?.country]
     .filter(Boolean)
@@ -32,7 +35,7 @@ export default async function LabelPage({ params }: { params: Promise<{ token: s
           <Image
             className="mx-auto block h-auto w-full max-w-[560px]"
             alt={`QR ${token}`}
-            src={`/api/qr/png?token=${encodeURIComponent(token)}`}
+            src={qrDataUrl}
             width={560}
             height={560}
             unoptimized
