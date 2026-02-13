@@ -70,6 +70,48 @@ export async function POST(req: Request) {
       .update({ activated_at: new Date().toISOString(), activated_user_id: claim.user_id })
       .eq('id', claim.claim_contact_id)
       .is('activated_at', null);
+
+    // Pooling: if multiple inactive bins have the same credentials, auto-activate them all.
+    // This lets admin pre-create many bins with the same owner/worker contact and have one activation unlock the rest.
+    const { data: activatedContact } = await supabase
+      .from('bin_claim_contacts')
+      .select('email,phone,role')
+      .eq('id', claim.claim_contact_id)
+      .maybeSingle();
+
+    const email = (activatedContact?.email ?? null) as string | null;
+    const phone = (activatedContact?.phone ?? null) as string | null;
+    const clauses: string[] = [];
+    if (email) clauses.push(`email.eq.${email.toLowerCase()}`);
+    if (phone) clauses.push(`phone.eq.${phone}`);
+
+    if (clauses.length > 0) {
+      const { data: otherContacts } = await supabase
+        .from('bin_claim_contacts')
+        .select('id,bin_id')
+        .eq('role', claim.role)
+        .is('activated_at', null)
+        .or(clauses.join(','))
+        .limit(500);
+
+      const ids = (otherContacts ?? []).map((c) => c.id as string);
+      const binIds = (otherContacts ?? []).map((c) => c.bin_id as string);
+
+      if (binIds.length > 0) {
+        await supabase.from('bin_members').upsert(
+          binIds.map((bin_id) => ({ bin_id, user_id: claim.user_id, role: claim.role })),
+          { onConflict: 'bin_id,user_id,role' },
+        );
+      }
+
+      if (ids.length > 0) {
+        await supabase
+          .from('bin_claim_contacts')
+          .update({ activated_at: new Date().toISOString(), activated_user_id: claim.user_id })
+          .in('id', ids)
+          .is('activated_at', null);
+      }
+    }
   }
 
   await setSession(claim.user_id);
