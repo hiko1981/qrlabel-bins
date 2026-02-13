@@ -52,6 +52,6 @@ export async function POST(req: Request) {
     role: body.role,
     claimToken,
     claimUrl: `/claim/${claimToken}`,
-    claimUrlAbsolute: `https://qrlabel.one/claim/${claimToken}`,
+    claimUrlAbsolute: `https://www.qrlabel.eu/claim/${claimToken}`,
   });
 }

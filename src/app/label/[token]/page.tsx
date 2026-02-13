@@ -6,6 +6,7 @@ import { getQrMeta } from '@/lib/qr/qr';
 import { getLocaleFromHeaders } from '@/lib/i18n';
 import { t } from '@/lib/uiText';
 import { generateQrPngForToken } from '@/lib/qr/qr';
+import { BinMarker } from '@/components/BinMarker';
 
 export default async function LabelPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -26,7 +27,10 @@ export default async function LabelPage({ params }: { params: Promise<{ token: s
     <main className="mx-auto max-w-3xl p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-xs text-neutral-500">{t(locale, 'printLabel')}</div>
+          <div className="flex items-center gap-2 text-xs text-neutral-500">
+            <BinMarker size={16} className="opacity-70" />
+            <span>{t(locale, 'printLabel')}</span>
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">{bin?.wasteStream ?? bin?.label ?? 'Affald'}</h1>
           <div className="mt-1 text-sm text-neutral-600">{address || '—'}</div>
           <div className="mt-1 text-xs text-neutral-500 font-mono">{meta.encoded_url}</div>

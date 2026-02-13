@@ -1,10 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export function ClaimAccess() {
-  const [binToken, setBinToken] = useState('');
-  const [role, setRole] = useState<'owner' | 'worker'>('owner');
+  const searchParams = useSearchParams();
+  const initialToken = searchParams.get('token') ?? '';
+  const initialRole = searchParams.get('role') === 'worker' ? 'worker' : 'owner';
+
+  const [binToken, setBinToken] = useState(initialToken);
+  const [role, setRole] = useState<'owner' | 'worker'>(initialRole);
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [code, setCode] = useState('');

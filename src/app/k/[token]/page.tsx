@@ -6,6 +6,7 @@ import { LocationShare } from './public-location';
 import { WorkerActions } from './worker-actions';
 import Link from 'next/link';
 import { PushToggle } from '@/components/push/PushToggle';
+import { BinMarker } from '@/components/BinMarker';
 
 export default async function BinTokenPage({
   params,
@@ -30,7 +31,10 @@ export default async function BinTokenPage({
       <main className="mx-auto max-w-xl p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-xs text-neutral-500">Affaldsspand</div>
+            <div className="flex items-center gap-2 text-xs text-neutral-500">
+              <BinMarker size={16} className="opacity-70" />
+              <span>Affaldsspand</span>
+            </div>
             <h1 className="text-2xl font-semibold tracking-tight">Bin</h1>
             <div className="mt-2 text-sm text-neutral-700">
               Kunne ikke hente bin-data lige nu. Prøv igen om lidt.
@@ -58,7 +62,10 @@ export default async function BinTokenPage({
     <main className="mx-auto max-w-xl p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs text-neutral-500">Affaldsspand</div>
+          <div className="flex items-center gap-2 text-xs text-neutral-500">
+            <BinMarker size={16} className="opacity-70" />
+            <span>Affaldsspand</span>
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">{bin.label}</h1>
           {bin.municipality ? (
             <div className="mt-1 text-sm text-neutral-600">{bin.municipality}</div>

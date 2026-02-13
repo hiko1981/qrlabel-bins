@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
+import Link from 'next/link';
 
 type SessionState =
   | { status: 'loading' }
@@ -20,6 +21,19 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
 
   const canOwnerLogin = useMemo(() => true, []);
   const canWorkerLogin = useMemo(() => true, []);
+
+  function friendlyError(message: string, role?: 'owner' | 'worker') {
+    if (message.includes('No credentials registered') || message.includes('No credentials')) {
+      const r = role ? ` som ${role}` : '';
+      return `Ingen passkey registreret${r} endnu. Claim adgang først.`;
+    }
+    if (message.includes('No users for role')) {
+      const r = role ? ` (${role})` : '';
+      return `Ingen bruger tilknyttet denne rolle${r}.`;
+    }
+    if (message.includes('Unknown bin token')) return 'Ugyldigt bin token.';
+    return message;
+  }
 
   async function refresh() {
     setError(null);
@@ -40,7 +54,7 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
     });
     if (!optionsRes.ok) {
       const t = await optionsRes.text();
-      throw new Error(t || 'Login options failed');
+      throw new Error(friendlyError(t || 'Login options failed', role));
     }
     const options = await optionsRes.json();
 
@@ -52,7 +66,7 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
     });
     if (!verifyRes.ok) {
       const t = await verifyRes.text();
-      throw new Error(t || 'Login verify failed');
+      throw new Error(friendlyError(t || 'Login verify failed', role));
     }
     await refresh();
   }
@@ -87,6 +101,13 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
             >
               Log ind som worker (passkey)
             </button>
+          </div>
+          <div className="text-xs text-neutral-500">
+            Har du ikke passkey endnu?{' '}
+            <Link className="underline" href={`/claim-access?token=${encodeURIComponent(binToken)}`}>
+              Claim adgang
+            </Link>
+            .
           </div>
         </div>
       ) : null}

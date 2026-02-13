@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/session';
 import { getOwnerBins, getRecentEventsForBins } from '@/lib/data';
 import { PushToggle } from '@/components/push/PushToggle';
+import { BinMarker } from '@/components/BinMarker';
 
 function formatEvent(type: string) {
   switch (type) {
@@ -65,7 +66,10 @@ export default async function OwnerDashboard() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs text-neutral-500">Dashboard</div>
-          <h1 className="text-3xl font-semibold tracking-tight">Owner</h1>
+          <div className="flex items-center gap-2">
+            <BinMarker size={20} className="opacity-70" />
+            <h1 className="text-3xl font-semibold tracking-tight">Owner</h1>
+          </div>
           <div className="mt-1 text-sm text-neutral-600">Passkey login giver single-tap adgang.</div>
         </div>
       </div>
