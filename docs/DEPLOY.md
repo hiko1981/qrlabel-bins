@@ -28,6 +28,22 @@ Når protection er slået fra skal disse virke offentligt:
 - `/api/qr/pdf?token=<token>` (download)
 - `/api/qr/bundle?token=<token>` (download zip)
 
+## Vercel domain alias (`*.vercel.app`)
+
+Hvis `https://qrlabel-bins.vercel.app/` giver 404, så er domænet ikke korrekt aliased til projektet.
+
+**MANUAL STEP:**
+1) Vercel Dashboard → `hikmet-altuns-projects` → `qrlabel-bins`
+2) `Settings` → `Domains`
+3) Sikr at `qrlabel-bins.vercel.app` står på listen og peger på dette projekt
+4) Hvis den mangler: tilføj domænet eller brug en anden `*.vercel.app` URL der er listet under deployment “Aliases”
+
+## Smoke test (after protection is off)
+
+Kør lokalt mod production:
+
+`pnpm run smoke:qr -- --base=https://qrlabel-bins.vercel.app --token=JcX5YxtiBOc8aYmP`
+
 ## Supabase
 
 Migrations live in `supabase/migrations`. Push with:
