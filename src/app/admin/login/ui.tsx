@@ -6,6 +6,7 @@ import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 
 export function AdminLogin() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [auto, setAuto] = useState(true);
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -22,11 +23,15 @@ export function AdminLogin() {
       const res = await fetch('/api/admin/auth/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: isEmail ? emailOrPhone : undefined, phone: !isEmail ? emailOrPhone : undefined }),
+        body: JSON.stringify(
+          auto
+            ? {}
+            : { email: isEmail ? emailOrPhone : undefined, phone: !isEmail ? emailOrPhone : undefined },
+        ),
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { verificationId: string; devCode?: string; warning?: string };
-      setVerificationId(data.verificationId);
+      const data = (await res.json()) as { verificationIds?: string[]; devCode?: string; warning?: string };
+      setVerificationId(data.verificationIds?.[0] ?? null);
       setDevCode(data.devCode ?? null);
       if (data.warning) setError(data.warning);
     } catch (e) {
@@ -120,18 +125,24 @@ export function AdminLogin() {
       {!verificationId ? (
         <div className="space-y-2">
           <div className="text-sm font-medium">Første gang (OTP)</div>
-          <label className="text-sm">
-            Email eller telefon
-            <input
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              value={emailOrPhone}
-              onChange={(e) => setEmailOrPhone(e.target.value)}
-              placeholder="mail@... eller +45..."
-            />
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+            Send automatisk til admin-kontakt
           </label>
+          {!auto ? (
+            <label className="text-sm">
+              Email eller telefon
+              <input
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                value={emailOrPhone}
+                onChange={(e) => setEmailOrPhone(e.target.value)}
+                placeholder="mail@... eller +45..."
+              />
+            </label>
+          ) : null}
           <button
             type="button"
-            disabled={busy || !emailOrPhone}
+            disabled={busy || (!auto && !emailOrPhone)}
             className="w-full rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => sendCode()}
           >

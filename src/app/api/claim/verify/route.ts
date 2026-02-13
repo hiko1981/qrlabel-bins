@@ -5,7 +5,7 @@ import { sha256Base64Url } from '@/lib/crypto';
 import { randomToken } from '@/lib/random';
 
 const Body = z.object({
-  verificationId: z.string().uuid(),
+  verificationId: z.string().uuid().optional(),
   code: z.string().min(4).max(10),
   binToken: z.string().min(6),
 });
@@ -14,12 +14,60 @@ export async function POST(req: Request) {
   const body = Body.parse(await req.json());
   const supabase = getSupabaseAdmin();
 
-  const { data: v, error: vErr } = await supabase
-    .from('contact_verifications')
-    .select('id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
-    .eq('id', body.verificationId)
-    .maybeSingle();
-  if (vErr || !v) return new NextResponse('Invalid verification', { status: 400 });
+  let v:
+    | {
+        id: string;
+        bin_id: string;
+        role: string;
+        contact_type: string;
+        contact_value: string;
+        code_hash: string;
+        expires_at: string;
+        consumed_at: string | null;
+        attempts: number | null;
+      }
+    | null = null;
+
+  if (body.verificationId) {
+    const res = await supabase
+      .from('contact_verifications')
+      .select('id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
+      .eq('id', body.verificationId)
+      .maybeSingle();
+    if (res.error || !res.data) return new NextResponse('Invalid verification', { status: 400 });
+    v = res.data as any;
+  } else {
+    const { data: tokenRow, error: tokenErr } = await supabase
+      .from('bin_tokens')
+      .select('bin_id')
+      .eq('token', body.binToken)
+      .maybeSingle();
+    if (tokenErr || !tokenRow?.bin_id) return new NextResponse('Unknown bin token', { status: 404 });
+
+    const { data: candidates, error: candErr } = await supabase
+      .from('contact_verifications')
+      .select('id,bin_id,role,contact_type,contact_value,code_hash,expires_at,consumed_at,attempts')
+      .eq('bin_id', tokenRow.bin_id)
+      .order('created_at', { ascending: false })
+      .limit(25);
+    if (candErr || !candidates) return new NextResponse('Invalid verification', { status: 400 });
+
+    for (const row of candidates as any[]) {
+      if (row.consumed_at) continue;
+      if (new Date(row.expires_at) <= new Date()) continue;
+      if ((row.attempts ?? 0) >= 5) continue;
+      const expected = sha256Base64Url(
+        `${body.code}:${row.bin_id}:${row.role}:${row.contact_type}:${row.contact_value}`,
+      );
+      if (expected === row.code_hash) {
+        v = row;
+        break;
+      }
+    }
+    if (!v) return new NextResponse('Invalid code', { status: 400 });
+  }
+  if (!v) return new NextResponse('Invalid verification', { status: 400 });
+
   if (v.consumed_at) return new NextResponse('Already used', { status: 400 });
   if (new Date(v.expires_at) <= new Date()) return new NextResponse('Expired', { status: 400 });
   if ((v.attempts ?? 0) >= 5) return new NextResponse('Too many attempts', { status: 429 });
@@ -66,4 +114,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, claimUrl: `/claim/${claimToken}` });
 }
-

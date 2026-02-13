@@ -7,6 +7,7 @@ export function ClaimAccess() {
   const searchParams = useSearchParams();
   const initialToken = searchParams.get('token') ?? '';
   const initialRole = searchParams.get('role') === 'worker' ? 'worker' : 'owner';
+  const auto = searchParams.get('auto') === '1';
 
   const [binToken, setBinToken] = useState(initialToken);
   const [role, setRole] = useState<'owner' | 'worker'>(initialRole);
@@ -22,19 +23,20 @@ export function ClaimAccess() {
     setBusy(true);
     try {
       const isEmail = emailOrPhone.includes('@');
+      const auto = !emailOrPhone;
       const res = await fetch('/api/claim/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           binToken,
           role,
-          email: isEmail ? emailOrPhone : undefined,
-          phone: !isEmail ? emailOrPhone : undefined,
+          email: !auto && isEmail ? emailOrPhone : undefined,
+          phone: !auto && !isEmail ? emailOrPhone : undefined,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { verificationId: string; devCode?: string };
-      setVerificationId(data.verificationId);
+      const data = (await res.json()) as { verificationIds?: string[]; devCode?: string };
+      setVerificationId(data.verificationIds?.[0] ?? null);
       setDevCode(data.devCode ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -50,7 +52,7 @@ export function ClaimAccess() {
       const res = await fetch('/api/claim/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ verificationId, code, binToken }),
+        body: JSON.stringify({ verificationId: verificationId ?? undefined, code, binToken }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = (await res.json()) as { claimUrl: string };
@@ -87,23 +89,25 @@ export function ClaimAccess() {
                 <option value="worker">worker</option>
               </select>
             </label>
-            <label className="text-sm">
-              Email eller telefon
-              <input
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-                value={emailOrPhone}
-                onChange={(e) => setEmailOrPhone(e.target.value)}
-                placeholder="mail@... eller 27141448"
-              />
-            </label>
+            {!auto ? (
+              <label className="text-sm">
+                Email eller telefon (valgfri)
+                <input
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                  value={emailOrPhone}
+                  onChange={(e) => setEmailOrPhone(e.target.value)}
+                  placeholder="tom = send til foruddefinerede kontakter"
+                />
+              </label>
+            ) : null}
           </div>
           <button
             type="button"
-            disabled={busy || !binToken || !emailOrPhone}
+            disabled={busy || !binToken}
             className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => start()}
           >
-            Send kode
+            {auto ? 'Send kode til registreret kontakt' : 'Send kode'}
           </button>
           {devCode ? (
             <div className="text-xs text-neutral-500">

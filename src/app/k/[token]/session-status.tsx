@@ -109,6 +109,20 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
             </Link>
             .
           </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Link
+              className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white"
+              href={`/claim-access?token=${encodeURIComponent(binToken)}&role=owner&auto=1`}
+            >
+              Jeg er ejer
+            </Link>
+            <Link
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
+              href={`/claim-access?token=${encodeURIComponent(binToken)}&role=worker&auto=1`}
+            >
+              Jeg er medarbejder
+            </Link>
+          </div>
         </div>
       ) : null}
 

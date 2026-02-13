@@ -11,55 +11,88 @@ const Body = z.object({
   phone: z.string().min(3).optional(),
 });
 
+function parseList(v: string | undefined) {
+  if (!v) return [];
+  return v
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export async function POST(req: Request) {
   const body = Body.parse(await req.json().catch(() => ({})));
   const email = body.email?.toLowerCase();
   const phone = body.phone;
-  const contactType = email ? 'email' : 'phone';
-  const contactValue = email ?? phone;
-  if (!contactValue) return new NextResponse('email or phone required', { status: 400 });
+  const contactType = email ? 'email' : phone ? 'phone' : null;
+  const contactValue = email ?? phone ?? null;
 
-  const allowed =
-    contactType === 'email' ? isAllowedAdminEmail(contactValue) : isAllowedAdminPhone(contactValue);
-  if (!allowed) return new NextResponse('Not allowed', { status: 403 });
+  const targets =
+    contactType && contactValue
+      ? [{ type: contactType, value: contactValue }]
+      : [
+          ...parseList(process.env.ADMIN_BOOTSTRAP_EMAILS).map((v) => ({ type: 'email' as const, value: v.toLowerCase() })),
+          ...parseList(process.env.ADMIN_BOOTSTRAP_PHONES).map((v) => ({ type: 'phone' as const, value: v })),
+        ];
+
+  if (targets.length === 0) return new NextResponse('Not allowed', { status: 403 });
+  if (contactType && contactValue) {
+    const allowed =
+      contactType === 'email' ? isAllowedAdminEmail(contactValue) : isAllowedAdminPhone(contactValue);
+    if (!allowed) return new NextResponse('Not allowed', { status: 403 });
+  }
 
   const code = randomNumericCode(6);
-  const codeHash = sha256Base64Url(`admin:${code}:${contactType}:${contactValue}`);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   const locale = getLocaleFromHeaders(req.headers);
   const supabase = getSupabaseAdmin();
-  const { data: verification, error } = await supabase
-    .from('admin_verifications')
-    .insert({
-      contact_type: contactType,
-      contact_value: contactValue,
-      code_hash: codeHash,
-      expires_at: expiresAt,
-      user_agent: req.headers.get('user-agent'),
-      locale,
-    })
-    .select('id')
-    .single();
-  if (error) return new NextResponse(error.message, { status: 500 });
+
+  const created: string[] = [];
+  for (const t of targets) {
+    const allowed =
+      t.type === 'email' ? isAllowedAdminEmail(t.value) : isAllowedAdminPhone(t.value);
+    if (!allowed) continue;
+
+    const codeHash = sha256Base64Url(`admin:${code}:${t.type}:${t.value}`);
+    const { data: verification, error } = await supabase
+      .from('admin_verifications')
+      .insert({
+        contact_type: t.type,
+        contact_value: t.value,
+        code_hash: codeHash,
+        expires_at: expiresAt,
+        user_agent: req.headers.get('user-agent'),
+        locale,
+      })
+      .select('id')
+      .single();
+    if (error) return new NextResponse(error.message, { status: 500 });
+    created.push(verification.id);
+  }
+  if (created.length === 0) return new NextResponse('Not allowed', { status: 403 });
 
   try {
-    await deliverOtp({
-      target: contactType === 'email' ? { type: 'email', to: contactValue } : { type: 'sms', to: contactValue },
-      code,
-      binToken: 'admin',
-      role: 'owner',
-    });
+    await Promise.all(
+      targets
+        .filter((t) => (t.type === 'email' ? isAllowedAdminEmail(t.value) : isAllowedAdminPhone(t.value)))
+        .map((t) =>
+          deliverOtp({
+            target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
+            code,
+            binToken: 'admin',
+            role: 'owner',
+          }),
+        ),
+    );
   } catch (e) {
     const includeCode = process.env.NODE_ENV !== 'production';
     const msg = e instanceof Error ? e.message : String(e);
     if (includeCode) {
-      return NextResponse.json({ ok: true, verificationId: verification.id, devCode: code, warning: msg });
+      return NextResponse.json({ ok: true, verificationIds: created, devCode: code, warning: msg });
     }
     return new NextResponse(`Kunne ikke sende kode. ${msg}`, { status: 501 });
   }
 
   const includeCode = process.env.NODE_ENV !== 'production';
-  return NextResponse.json({ ok: true, verificationId: verification.id, devCode: includeCode ? code : undefined });
+  return NextResponse.json({ ok: true, verificationIds: created, devCode: includeCode ? code : undefined });
 }
-

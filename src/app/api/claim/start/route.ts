@@ -25,64 +25,87 @@ export async function POST(req: Request) {
         return onlyDigits;
       })()
     : undefined;
-  const contactType = email ? 'email' : 'phone';
-  const contactValue = email ?? phone;
-  if (!contactValue) return new NextResponse('email or phone required', { status: 400 });
+  const contactType = email ? 'email' : phone ? 'phone' : null;
+  const contactValue = email ?? phone ?? null;
 
   const binId = await getBinIdByToken(body.binToken);
   if (!binId) return new NextResponse('Unknown bin token', { status: 404 });
 
   const supabase = getSupabaseAdmin();
-  const { data: allowed } = await supabase
+  const { data: contacts, error: contactsErr } = await supabase
     .from('bin_claim_contacts')
-    .select('id')
+    .select('email, phone')
     .eq('bin_id', binId)
-    .eq('role', body.role)
-    .eq(contactType, contactValue)
-    .limit(1);
-  if (!allowed || allowed.length === 0) return new NextResponse('Not allowed', { status: 403 });
+    .eq('role', body.role);
+  if (contactsErr) return new NextResponse(contactsErr.message, { status: 500 });
+  if (!contacts || contacts.length === 0) return new NextResponse('Not allowed', { status: 403 });
+
+  const allowedTargets = contacts
+    .flatMap((c) => [
+      c.phone ? { type: 'phone' as const, value: String(c.phone) } : null,
+      c.email ? { type: 'email' as const, value: String(c.email).toLowerCase() } : null,
+    ])
+    .filter((x): x is { type: 'phone' | 'email'; value: string } => Boolean(x));
+
+  if (contactType && contactValue) {
+    const ok = allowedTargets.some((t) => t.type === contactType && t.value === contactValue);
+    if (!ok) return new NextResponse('Not allowed', { status: 403 });
+  }
 
   const code = randomNumericCode(6);
-  const codeHash = sha256Base64Url(`${code}:${binId}:${body.role}:${contactType}:${contactValue}`);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   const locale = getLocaleFromHeaders(req.headers);
-  const { data: verification, error } = await supabase
-    .from('contact_verifications')
-    .insert({
-      bin_id: binId,
-      role: body.role,
-      contact_type: contactType,
-      contact_value: contactValue,
-      code_hash: codeHash,
-      expires_at: expiresAt,
-      user_agent: req.headers.get('user-agent'),
-      locale,
-    })
-    .select('id')
-    .single();
-  if (error) return new NextResponse(error.message, { status: 500 });
+  const targetsToSend =
+    contactType && contactValue
+      ? [{ type: contactType as 'email' | 'phone', value: contactValue }]
+      : allowedTargets;
+
+  const created: string[] = [];
+  for (const t of targetsToSend) {
+    const codeHash = sha256Base64Url(`${code}:${binId}:${body.role}:${t.type}:${t.value}`);
+    const { data: verification, error } = await supabase
+      .from('contact_verifications')
+      .insert({
+        bin_id: binId,
+        role: body.role,
+        contact_type: t.type,
+        contact_value: t.value,
+        code_hash: codeHash,
+        expires_at: expiresAt,
+        user_agent: req.headers.get('user-agent'),
+        locale,
+      })
+      .select('id')
+      .single();
+    if (error) return new NextResponse(error.message, { status: 500 });
+    created.push(verification.id);
+  }
 
   try {
-    await deliverOtp({
-      target: contactType === 'email' ? { type: 'email', to: contactValue } : { type: 'sms', to: contactValue },
-      code,
-      binToken: body.binToken,
-      role: body.role,
-    });
+    await Promise.all(
+      targetsToSend.map((t) =>
+        deliverOtp({
+          target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
+          code,
+          binToken: body.binToken,
+          role: body.role,
+        }),
+      ),
+    );
   } catch (e) {
     const includeCode = process.env.NODE_ENV !== 'production';
     const msg = e instanceof Error ? e.message : String(e);
     if (includeCode) {
-      return NextResponse.json({ ok: true, verificationId: verification.id, devCode: code, warning: msg });
+      return NextResponse.json({ ok: true, verificationIds: created, devCode: code, warning: msg });
     }
     return new NextResponse(
-      `Kunne ikke sende kode (${contactType}). Konfigurér provider env vars. ${msg}`,
+      `Kunne ikke sende kode. Konfigurér provider env vars. ${msg}`,
       { status: 501 },
     );
   }
 
   // Do not return code in production.
   const includeCode = process.env.NODE_ENV !== 'production';
-  return NextResponse.json({ ok: true, verificationId: verification.id, devCode: includeCode ? code : undefined });
+  return NextResponse.json({ ok: true, verificationIds: created, devCode: includeCode ? code : undefined });
 }
