@@ -6,7 +6,7 @@ function stripPort(host: string) {
 }
 
 export function middleware(req: NextRequest) {
-  const host = stripPort(req.headers.get('host') ?? '');
+  const host = stripPort(req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '');
   const url = req.nextUrl;
 
   // Hide locator token from the browser URL by redirecting /k/<token> -> /k and storing token in a cookie.
