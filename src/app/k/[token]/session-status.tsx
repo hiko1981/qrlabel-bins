@@ -69,6 +69,11 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
       throw new Error(friendlyError(t || 'Login verify failed', role));
     }
     await refresh();
+
+    // Owner UX: after successful passkey login, go straight to the owner hub.
+    if (role === 'owner') {
+      window.location.assign(`/owner?from=${encodeURIComponent(binToken)}`);
+    }
   }
 
   async function logout() {
@@ -131,6 +136,14 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
           <div className="text-sm text-neutral-700">
             Logget ind. Roller for denne spand: <span className="font-mono">{state.user.roles.join(', ') || '-'}</span>
           </div>
+          {state.user.roles.includes('owner') ? (
+            <Link
+              className="inline-flex rounded-lg bg-black px-3 py-2 text-sm font-medium text-white"
+              href={`/owner?from=${encodeURIComponent(binToken)}`}
+            >
+              Gå til owner hub
+            </Link>
+          ) : null}
           <button
             type="button"
             className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"

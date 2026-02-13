@@ -3,7 +3,6 @@ import { getBinByToken, getRolesForUserInBinToken } from '@/lib/data';
 import { SessionStatus } from './[token]/session-status';
 import { LocationShare } from './[token]/public-location';
 import { WorkerActions } from './[token]/worker-actions';
-import { PushToggle } from '@/components/push/PushToggle';
 import { BinMarker } from '@/components/BinMarker';
 import Link from 'next/link';
 
@@ -89,20 +88,6 @@ export async function BinPageImpl({
       <div className="mt-6 rounded-xl border bg-white p-4">
         <SessionStatus binToken={token} initial={initialSession} />
       </div>
-
-      {initialSession.authed && initialSession.user.roles.includes('owner') && !forcePublic ? (
-        <div className="mt-6 rounded-xl border bg-white p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium">Owner</div>
-            <Link className="text-sm underline" href="/owner">
-              Åbn dashboard
-            </Link>
-          </div>
-          <div className="mt-3">
-            <PushToggle role="owner" />
-          </div>
-        </div>
-      ) : null}
 
       {initialSession.authed && initialSession.user.roles.includes('worker') && !forcePublic ? (
         <div className="mt-6 rounded-xl border bg-white p-4">
