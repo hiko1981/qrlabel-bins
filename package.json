@@ -9,7 +9,8 @@
     "lint": "eslint",
     "verify:qr": "tsx scripts/verify-qr.ts",
     "smoke:qr": "tsx scripts/smoke-qr-endpoints.ts",
-    "smoke:local": "tsx scripts/smoke-local.ts"
+    "smoke:local": "tsx scripts/smoke-local.ts",
+    "print:zd421t": "tsx scripts/print-zd421t.ts"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.2.2",

@@ -41,6 +41,14 @@ export default async function SampleLabelsPage() {
         <a className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50" href={`/api/qr/bundle?token=${token}`}>
           Download ZIP bundle
         </a>
+        <a
+          className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
+          href={`/label/${token}/print?autoprint=1&wmm=102&hmm=152`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Print (ZD421T)
+        </a>
         <Link className="rounded-lg bg-black px-3 py-2 text-center text-sm font-medium text-white" href={`/label/${token}`}>
           Åbn label side
         </Link>

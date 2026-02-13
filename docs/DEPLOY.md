@@ -105,6 +105,19 @@ Env vars:
 - `RESEND_API_KEY`, `RESEND_FROM`
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
 
+## Lokal print helper (Zebra ZD421T)
+
+Vercel kan ikke printe til din lokale netværksprinter. Brug i stedet et lokalt script som sender ZPL direkte til printeren (RAW 9100).
+
+1) Find printerens IP (i printer-menu eller router/DHCP)
+2) Kør fra repo:
+
+`pnpm run print:zd421t -- --ip=<PRINTER_IP> --token=JcX5YxtiBOc8aYmP`
+
+Valgfrit:
+- `--port=9100`
+- `--widthMm=102 --heightMm=152 --dpi=203`
+
 **MANUAL STEP:** Vælg og konfigurér en provider:
 
 - Email: Resend (anbefalet)

@@ -32,13 +32,41 @@ export async function POST(req: Request) {
   if (!binId) return new NextResponse('Unknown bin token', { status: 404 });
 
   const supabase = getSupabaseAdmin();
-  const { data: contacts, error: contactsErr } = await supabase
+  const { data: contactsRaw, error: contactsErr } = await supabase
     .from('bin_claim_contacts')
     .select('id, email, phone, activated_at')
     .eq('bin_id', binId)
     .eq('role', body.role);
   if (contactsErr) return new NextResponse(contactsErr.message, { status: 500 });
-  if (!contacts || contacts.length === 0) return new NextResponse('Not allowed', { status: 403 });
+  if (!contactsRaw || contactsRaw.length === 0) return new NextResponse('Not allowed', { status: 403 });
+
+  // Best-effort merge: if there is exactly one inactive email-only row and one inactive phone-only row,
+  // merge them into a single row so the owner gets the same code on both channels.
+  // This handles the common "one owner with both email+phone" setup even if added as two rows.
+  let contacts = contactsRaw as Array<{ id: string; email: string | null; phone: string | null; activated_at: string | null }>;
+  try {
+    const inactive = contacts.filter((c) => !c.activated_at);
+    const hasCombined = inactive.some((c) => Boolean(c.email) && Boolean(c.phone));
+    if (!hasCombined) {
+      const emailOnly = inactive.filter((c) => Boolean(c.email) && !c.phone);
+      const phoneOnly = inactive.filter((c) => Boolean(c.phone) && !c.email);
+      if (emailOnly.length === 1 && phoneOnly.length === 1) {
+        const e = emailOnly[0]!;
+        const p = phoneOnly[0]!;
+        await supabase.from('bin_claim_contacts').update({ phone: p.phone }).eq('id', e.id).is('activated_at', null);
+        await supabase.from('bin_claim_contacts').delete().eq('id', p.id).is('activated_at', null);
+        // Refresh
+        const { data: merged } = await supabase
+          .from('bin_claim_contacts')
+          .select('id, email, phone, activated_at')
+          .eq('bin_id', binId)
+          .eq('role', body.role);
+        if (merged && merged.length > 0) contacts = merged as any;
+      }
+    }
+  } catch {
+    // Ignore merge errors; we'll proceed with current contacts.
+  }
 
   const inactiveContacts = contacts.filter((c) => !c.activated_at);
   const allowedTargets = inactiveContacts
