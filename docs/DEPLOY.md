@@ -7,6 +7,12 @@
 
 **MANUAL STEP:** Add `qrlabel.one` and `qrx.dk` as domains on the Vercel project, and configure DNS to point both to this Vercel project. The redirect behavior for `qrx.dk` is implemented in `src/middleware.ts`.
 
+## Deployment protection
+
+Hvis du har Vercel Authentication / Deployment Protection slået til, vil public scanning (`/k/<token>`) ikke virke.
+
+**MANUAL STEP:** Slå protection fra for Production på Vercel-projektet (eller brug en official bypass automation token hvis du bevidst vil beholde protection).
+
 ## Supabase
 
 Migrations live in `supabase/migrations`. Push with:
