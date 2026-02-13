@@ -1,38 +1,20 @@
 import { getSession } from '@/lib/session';
-import { getOwnerBins, getRecentEventsForBins } from '@/lib/data';
+import { getMunicipalityPortalUrl, getOwnerBins, getRecentEventsForBins } from '@/lib/data';
 import { PushToggle } from '@/components/push/PushToggle';
 import { BinMarker } from '@/components/BinMarker';
 import { NotificationPrefs } from '@/components/NotificationPrefs';
+import { OwnerNavButton } from '@/components/OwnerNavButton';
 
-function formatEvent(type: string) {
-  switch (type) {
-    case 'misplaced_location_shared':
-      return 'Lokation delt (forkert placering)';
-    case 'tag_issued':
-      return 'Hangtag lagt';
-    case 'emptied_confirmed':
-      return 'Tømning kvitteret';
-    case 'visit_confirmed':
-      return 'Besøg kvitteret';
-    default:
-      return type;
-  }
-}
-
-function getSharedLocation(payload: unknown): { lat: number; lng: number } | null {
-  if (!payload || typeof payload !== 'object') return null;
-  const loc = (payload as { location?: unknown }).location;
-  if (!loc || typeof loc !== 'object') return null;
-  const lat = (loc as { lat?: unknown }).lat;
-  const lng = (loc as { lng?: unknown }).lng;
-  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
-  return { lat, lng };
-}
-
-function mapsLink(payload: unknown) {
-  const loc = getSharedLocation(payload);
-  if (!loc) return null;
-  return `https://www.google.com/maps?q=${loc.lat},${loc.lng}`;
+function formatRelativeDay(d: Date) {
+  const today = new Date();
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const b = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const diffDays = Math.round((a - b) / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return 'i dag';
+  if (diffDays === -1) return 'i går';
+  if (diffDays === 1) return 'i morgen';
+  if (diffDays < 0) return `for ${Math.abs(diffDays)} dage siden`;
+  return `om ${diffDays} dage`;
 }
 
 export default async function OwnerDashboard() {
@@ -52,15 +34,9 @@ export default async function OwnerDashboard() {
   const binIds = bins.map((b) => b.id);
   const events = await getRecentEventsForBins(binIds, 20);
 
-  const sortedEvents = [...events].sort((a, b) => {
-    const aPriority = a.type === 'misplaced_location_shared' || a.type === 'tag_issued' ? 0 : 1;
-    const bPriority = b.type === 'misplaced_location_shared' || b.type === 'tag_issued' ? 0 : 1;
-    const aUnread = a.resolved_at ? 1 : 0;
-    const bUnread = b.resolved_at ? 1 : 0;
-    if (aUnread !== bUnread) return aUnread - bUnread;
-    if (aPriority !== bPriority) return aPriority - bPriority;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+  const lastEmptied = [...events].find((e) => e.type === 'emptied_confirmed');
+  const municipality = bins.find((b) => Boolean(b.municipality))?.municipality ?? null;
+  const municipalityPortal = municipality ? await getMunicipalityPortalUrl(municipality) : null;
 
   return (
     <main className="mx-auto max-w-2xl p-6">
@@ -71,79 +47,56 @@ export default async function OwnerDashboard() {
             <BinMarker size={20} className="opacity-70" />
             <h1 className="text-3xl font-semibold tracking-tight">Owner</h1>
           </div>
-          <div className="mt-1 text-sm text-neutral-600">Passkey login giver single-tap adgang.</div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-2">
+        <OwnerNavButton href="/owner/messages" label="Beskeder" />
+        <OwnerNavButton href="/owner/location" label="Tilpas placering" />
+        <OwnerNavButton href="/owner/bins" label="Mine affaldsspande" />
+        <OwnerNavButton href="/owner/public" label="Klik her for at se hvad andre ser" />
+        <OwnerNavButton href="/owner/bins?mode=remove" label="Fjern affaldsspand" />
+      </div>
+
+      <div className="mt-6 grid gap-2">
+        <div className="rounded-xl border bg-white p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium">Seneste tømning</div>
+            <div className="rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-700">
+              {lastEmptied ? formatRelativeDay(new Date(lastEmptied.created_at)) : 'ukendt'}
+            </div>
+          </div>
+          <div className="mt-1 text-xs text-neutral-500">
+            {lastEmptied ? new Date(lastEmptied.created_at).toLocaleString() : 'Ingen tømninger endnu.'}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium">Næste tømning</div>
+            {municipalityPortal ? (
+              <a
+                className="rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-700 underline"
+                href={municipalityPortal}
+                target="_blank"
+                rel="noreferrer"
+              >
+                se kommuneportal
+              </a>
+            ) : (
+              <div className="rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-700">ukendt</div>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="mt-6 rounded-xl border bg-white p-4">
         <PushToggle role="owner" />
+        <div className="mt-4">
+          <NotificationPrefs />
+        </div>
       </div>
 
-      <div className="mt-6 rounded-xl border bg-white p-4">
-        <NotificationPrefs />
-      </div>
-
-      <h2 className="mt-8 text-lg font-semibold">Dine spande</h2>
-      <div className="mt-3 grid gap-2">
-        {bins.length === 0 ? (
-          <div className="rounded-xl border bg-white p-4 text-sm text-neutral-700">Ingen spande endnu.</div>
-        ) : null}
-        {bins.map((b) => (
-          <div key={b.id} className="rounded-xl border bg-white p-4">
-            <div className="text-sm font-medium">{b.label}</div>
-            {b.municipality ? <div className="mt-1 text-xs text-neutral-500">{b.municipality}</div> : null}
-            <div className="mt-3">
-              {b.locatorToken ? (
-                <a className="text-sm underline" href={`/k/${encodeURIComponent(b.locatorToken)}`}>
-                  Åbn spand
-                </a>
-              ) : (
-                <div className="text-xs text-neutral-500">Ingen token knyttet.</div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <h2 className="mt-8 text-lg font-semibold">Seneste hændelser</h2>
-      <div className="mt-3 grid gap-2">
-        {sortedEvents.length === 0 ? (
-          <div className="rounded-xl border bg-white p-4 text-sm text-neutral-700">Ingen hændelser endnu.</div>
-        ) : (
-          sortedEvents.slice(0, 30).map((e) => (
-            <div key={e.id} className="rounded-xl border bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-medium">{formatEvent(e.type)}</div>
-                {!e.resolved_at && (e.type === 'misplaced_location_shared' || e.type === 'tag_issued') ? (
-                  <form action={`/api/owner/resolve-event`} method="post">
-                    <input type="hidden" name="eventId" value={e.id} />
-                    <button className="rounded-lg border px-2 py-1 text-xs hover:bg-neutral-50" type="submit">
-                      Marker som løst
-                    </button>
-                  </form>
-                ) : null}
-              </div>
-              <div className="mt-1 text-xs text-neutral-500">{new Date(e.created_at).toLocaleString()}</div>
-              {e.type === 'misplaced_location_shared' ? (
-                <div className="mt-2 text-sm text-neutral-700">
-                  {mapsLink(e.payload) ? (
-                  <a
-                    className="underline"
-                    href={mapsLink(e.payload)!}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Åbn i kort
-                  </a>
-                  ) : (
-                    <div className="text-xs text-neutral-500">Lokation mangler.</div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ))
-        )}
-      </div>
     </main>
   );
 }

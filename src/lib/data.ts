@@ -145,6 +145,20 @@ export async function getMunicipalityPortalUrl(municipality: string) {
   return data.mitid_portal_url as string;
 }
 
+export async function getLatestOwnerLocationForBin(binId: string) {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from('bin_events')
+    .select('payload,created_at')
+    .eq('bin_id', binId)
+    .eq('type', 'owner_location_set')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as unknown as { payload: unknown; created_at: string };
+}
+
 export async function getLocatorTokensForBins(binIds: string[]) {
   const map = new Map<string, string>();
   if (binIds.length === 0) return map;

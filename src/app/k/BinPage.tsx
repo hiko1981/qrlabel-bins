@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getSession } from '@/lib/session';
 import { getBinByToken, getRolesForUserInBinToken } from '@/lib/data';
 import { SessionStatus } from './[token]/session-status';
@@ -6,6 +5,7 @@ import { LocationShare } from './[token]/public-location';
 import { WorkerActions } from './[token]/worker-actions';
 import { PushToggle } from '@/components/push/PushToggle';
 import { BinMarker } from '@/components/BinMarker';
+import Link from 'next/link';
 
 function maskToken(token: string) {
   if (token.length <= 8) return '••••';
@@ -13,6 +13,18 @@ function maskToken(token: string) {
 }
 
 export async function BinPage({ token }: { token: string }) {
+  return BinPageImpl({ token, forcePublic: false, showBackToOwner: false });
+}
+
+export async function BinPageImpl({
+  token,
+  forcePublic,
+  showBackToOwner,
+}: {
+  token: string;
+  forcePublic: boolean;
+  showBackToOwner: boolean;
+}) {
   let bin: Awaited<ReturnType<typeof getBinByToken>> = null;
   try {
     bin = await getBinByToken(token);
@@ -20,9 +32,12 @@ export async function BinPage({ token }: { token: string }) {
     console.error('getBinByToken failed', e);
   }
 
-  const sess = await getSession();
+  const sess = forcePublic ? null : await getSession();
   const initialSession = sess
-    ? { authed: true as const, user: { id: sess.userId, roles: await getRolesForUserInBinToken(sess.userId, token) } }
+    ? {
+        authed: true as const,
+        user: { id: sess.userId, roles: await getRolesForUserInBinToken(sess.userId, token) },
+      }
     : { authed: false as const };
 
   if (!bin) {
@@ -53,6 +68,13 @@ export async function BinPage({ token }: { token: string }) {
 
   return (
     <main className="mx-auto max-w-xl p-6">
+      {showBackToOwner ? (
+        <div className="mb-4">
+          <Link className="text-sm underline" href="/owner">
+            Tilbage
+          </Link>
+        </div>
+      ) : null}
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs text-neutral-500">
@@ -68,7 +90,7 @@ export async function BinPage({ token }: { token: string }) {
         <SessionStatus binToken={token} initial={initialSession} />
       </div>
 
-      {initialSession.authed && initialSession.user.roles.includes('owner') ? (
+      {initialSession.authed && initialSession.user.roles.includes('owner') && !forcePublic ? (
         <div className="mt-6 rounded-xl border bg-white p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-medium">Owner</div>
@@ -82,7 +104,7 @@ export async function BinPage({ token }: { token: string }) {
         </div>
       ) : null}
 
-      {initialSession.authed && initialSession.user.roles.includes('worker') ? (
+      {initialSession.authed && initialSession.user.roles.includes('worker') && !forcePublic ? (
         <div className="mt-6 rounded-xl border bg-white p-4">
           <WorkerActions binToken={token} />
         </div>
@@ -94,4 +116,3 @@ export async function BinPage({ token }: { token: string }) {
     </main>
   );
 }
-
