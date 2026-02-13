@@ -24,12 +24,13 @@ export async function deliverOtp(params: {
 }) {
   const { target, code, binToken, role } = params;
 
-  const appName = getOptionalEnv('OTP_SENDER_NAME') ?? getOptionalEnv('NEXT_PUBLIC_APP_NAME') ?? 'QRLabel';
+  const appNameRaw = getOptionalEnv('OTP_SENDER_NAME') ?? getOptionalEnv('NEXT_PUBLIC_APP_NAME') ?? 'QRLabel';
+  const appName = appNameRaw.trim();
   const msg = `${appName}: din kode er ${code}. (bin ${binToken}, rolle ${role})`;
 
   if (target.type === 'email') {
     const resendKey = getOptionalEnv('RESEND_API_KEY');
-    const resendFrom = getOptionalEnv('RESEND_FROM');
+    const resendFrom = getOptionalEnv('RESEND_FROM')?.trim();
     if (!resendKey || !resendFrom) {
       throw new Error('Email provider not configured (RESEND_API_KEY/RESEND_FROM)');
     }
