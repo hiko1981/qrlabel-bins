@@ -47,3 +47,13 @@ Claim-link åbnes på den enhed der skal bindes: `GET /claim/<claimToken>` → �
 ### Web Push
 
 Owners (og workers) kan aktivere notifikationer via `/owner` eller på `/k/<token>` efter login.
+
+### Print labels
+
+- Label page: `/label/<token>`
+- Assets:
+  - `/api/qr/png?token=<token>`
+  - `/api/qr/svg?token=<token>`
+  - `/api/qr/pdf?token=<token>`
+
+Admin labels UI: `/admin/labels` (indtast `ADMIN_API_KEY` i UI).
