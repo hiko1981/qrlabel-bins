@@ -10,6 +10,14 @@ const Body = z.object({
   expiresInDays: z.number().int().min(1).max(30).optional(),
 });
 
+export async function GET() {
+  return NextResponse.json({
+    ok: false,
+    message: 'Use POST with x-admin-key and JSON body.',
+    example: { binToken: 'JcX5YxtiBOc8aYmP', role: 'owner', expiresInDays: 7 },
+  });
+}
+
 export async function POST(req: Request) {
   const guard = requireAdmin(req);
   if (guard) return guard;

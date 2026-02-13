@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getBinIdByToken } from '@/lib/data';
 import { getLocaleFromHeaders } from '@/lib/i18n';
 import { randomNumericCode, sha256Base64Url } from '@/lib/crypto';
+import { deliverOtp } from '@/lib/otpDelivery';
 
 const Body = z.object({
   binToken: z.string().min(6),
@@ -54,9 +55,26 @@ export async function POST(req: Request) {
     .single();
   if (error) return new NextResponse(error.message, { status: 500 });
 
-  // MANUAL STEP: integrate email/SMS provider to deliver `code`.
-  // In production we do not return the code.
+  try {
+    await deliverOtp({
+      target: contactType === 'email' ? { type: 'email', to: contactValue } : { type: 'sms', to: contactValue },
+      code,
+      binToken: body.binToken,
+      role: body.role,
+    });
+  } catch (e) {
+    const includeCode = process.env.NODE_ENV !== 'production';
+    const msg = e instanceof Error ? e.message : String(e);
+    if (includeCode) {
+      return NextResponse.json({ ok: true, verificationId: verification.id, devCode: code, warning: msg });
+    }
+    return new NextResponse(
+      `Kunne ikke sende kode (${contactType}). Konfigurér provider env vars. ${msg}`,
+      { status: 501 },
+    );
+  }
+
+  // Do not return code in production.
   const includeCode = process.env.NODE_ENV !== 'production';
   return NextResponse.json({ ok: true, verificationId: verification.id, devCode: includeCode ? code : undefined });
 }
-

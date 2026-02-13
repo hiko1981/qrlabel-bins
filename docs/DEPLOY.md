@@ -87,14 +87,17 @@ Then set the values in Vercel env vars.
 
 `/claim-access` bruger `POST /api/claim/start` + `POST /api/claim/verify`.
 
-I denne MVP returnerer `/api/claim/start` kun en `devCode` udenfor production. I production skal koden sendes via en provider.
+I production sendes koden via en provider (email/SMS). Uden provider vil `/api/claim/start` returnere `501`.
 
 **MANUAL STEP:** Vælg og konfigurér en provider:
 
-- Email: Postmark/SendGrid/Resend
-- SMS: Twilio/MessageBird
+- Email: Resend (anbefalet)
+- SMS: Twilio
 
-Implementér afsendelse i `src/app/api/claim/start/route.ts` og sæt nødvendige env vars på Vercel.
+Sæt disse env vars på Vercel (Production + Preview):
+
+- Email (Resend): `RESEND_API_KEY`, `RESEND_FROM`
+- SMS (Twilio): `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
 
 ## Fallback (SMS / Email)
 
