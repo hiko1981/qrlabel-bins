@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     const options = await generateRegistrationOptions({
       rpName: 'QRLABEL Bins',
       rpID: getRpIdFromHeaders(req.headers),
-      userID: claim.user_id,
+      userID: new TextEncoder().encode(claim.user_id),
       userName: `${claim.role}:${claim.user_id}`,
       attestationType: 'none',
       authenticatorSelection: {
