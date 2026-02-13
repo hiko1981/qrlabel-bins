@@ -50,11 +50,27 @@ export async function POST(req: Request) {
     if (!hasCombined) {
       const emailOnly = inactive.filter((c) => Boolean(c.email) && !c.phone);
       const phoneOnly = inactive.filter((c) => Boolean(c.phone) && !c.email);
-      if (emailOnly.length === 1 && phoneOnly.length === 1) {
-        const e = emailOnly[0]!;
-        const p = phoneOnly[0]!;
-        await supabase.from('bin_claim_contacts').update({ phone: p.phone }).eq('id', e.id).is('activated_at', null);
-        await supabase.from('bin_claim_contacts').delete().eq('id', p.id).is('activated_at', null);
+
+      const distinctEmails = new Set(emailOnly.map((c) => String(c.email).toLowerCase()));
+      const distinctPhones = new Set(phoneOnly.map((c) => String(c.phone)));
+
+      // If there's effectively one person represented as multiple rows (duplicates),
+      // consolidate into a single combined row.
+      if (distinctEmails.size === 1 && distinctPhones.size === 1 && emailOnly.length >= 1 && phoneOnly.length >= 1) {
+        const primary = emailOnly[0]!;
+        const phoneValue = phoneOnly[0]!.phone;
+
+        await supabase
+          .from('bin_claim_contacts')
+          .update({ phone: phoneValue })
+          .eq('id', primary.id)
+          .is('activated_at', null);
+
+        const idsToDelete = [...emailOnly.slice(1).map((c) => c.id), ...phoneOnly.map((c) => c.id)];
+        if (idsToDelete.length > 0) {
+          await supabase.from('bin_claim_contacts').delete().in('id', idsToDelete).is('activated_at', null);
+        }
+
         // Refresh
         const { data: merged } = await supabase
           .from('bin_claim_contacts')
