@@ -1,8 +1,11 @@
 import { notFound } from 'next/navigation';
-import { getBinByToken } from '@/lib/data';
-import { getRolesForUserInBinToken } from '@/lib/data';
+import { getBinByToken, getRolesForUserInBinToken } from '@/lib/data';
 import { getSession } from '@/lib/session';
 import { SessionStatus } from './session-status';
+import { LocationShare } from './public-location';
+import { WorkerActions } from './worker-actions';
+import Link from 'next/link';
+import { PushToggle } from '@/components/push/PushToggle';
 
 export default async function BinTokenPage({
   params,
@@ -32,6 +35,30 @@ export default async function BinTokenPage({
 
       <div className="mt-6 rounded-xl border bg-white p-4">
         <SessionStatus binToken={token} initial={initialSession} />
+      </div>
+
+      {initialSession.authed && initialSession.user.roles.includes('owner') ? (
+        <div className="mt-6 rounded-xl border bg-white p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium">Owner</div>
+            <Link className="text-sm underline" href="/owner">
+              Åbn dashboard
+            </Link>
+          </div>
+          <div className="mt-3">
+            <PushToggle role="owner" />
+          </div>
+        </div>
+      ) : null}
+
+      {initialSession.authed && initialSession.user.roles.includes('worker') ? (
+        <div className="mt-6 rounded-xl border bg-white p-4">
+          <WorkerActions binToken={token} />
+        </div>
+      ) : null}
+
+      <div className="mt-6 rounded-xl border bg-white p-4">
+        <LocationShare binToken={token} />
       </div>
 
       <div className="mt-6 text-xs text-neutral-500">

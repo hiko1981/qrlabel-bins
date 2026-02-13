@@ -5,7 +5,8 @@ Web-only scanning med WebAuthn/Passkeys (device-binding).
 ### Scan URLs
 
 - Canonical scan: `https://qrlabel.one/k/<token>`
-- Redirect: `qrz.dk` → `qrlabel.one/k/<token>` (via `src/middleware.ts`)
+- QR label URL: `https://qrx.dk/k/<locator_token>`
+- Redirect: `qrx.dk/*` → `qrlabel.one/k/<token>` (via `src/middleware.ts`)
 
 ### Roller
 
@@ -33,5 +34,10 @@ Alle admin endpoints kræver `x-admin-key: $ADMIN_API_KEY` eller `Authorization:
 
 - Opret spand + token: `POST /api/admin/create-bin` `{ "label": "...", "municipality": "..." }`
 - Udsted member + claim-link: `POST /api/admin/issue-member` `{ "binToken": "...", "role": "owner"|"worker" }`
+- Test Web Push: `POST /api/admin/test-push` `{ "principalId": "..." }`
 
 Claim-link åbnes på den enhed der skal bindes: `GET /claim/<claimToken>` → “Opret passkey”.
+
+### Web Push
+
+Owners (og workers) kan aktivere notifikationer via `/owner` eller på `/k/<token>` efter login.

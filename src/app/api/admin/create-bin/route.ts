@@ -32,5 +32,6 @@ export async function POST(req: Request) {
     binToken: token,
     binUrl: `/k/${token}`,
     canonicalScanUrl: `https://qrlabel.one/k/${token}`,
+    qrLabelUrl: `https://qrx.dk/k/${token}`,
   });
 }

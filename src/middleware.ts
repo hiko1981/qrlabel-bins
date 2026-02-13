@@ -9,8 +9,8 @@ export function middleware(req: NextRequest) {
   const host = stripPort(req.headers.get('host') ?? '');
   const url = req.nextUrl;
 
-  const isQrz = host === 'qrz.dk' || host === 'www.qrz.dk';
-  if (!isQrz) return NextResponse.next();
+  const isQrx = host === 'qrx.dk' || host === 'www.qrx.dk';
+  if (!isQrx) return NextResponse.next();
 
   const pathname = url.pathname;
   if (pathname.startsWith('/_next') || pathname.startsWith('/api')) {
@@ -25,11 +25,10 @@ export function middleware(req: NextRequest) {
     if (seg) token = seg;
   }
 
-  if (!token) return NextResponse.redirect(new URL('https://qrlabel.one/', req.url), 308);
-  return NextResponse.redirect(new URL(`/k/${encodeURIComponent(token)}`, 'https://qrlabel.one'), 308);
+  if (!token) return NextResponse.redirect(new URL('https://qrlabel.one/', req.url), 307);
+  return NextResponse.redirect(new URL(`/k/${encodeURIComponent(token)}`, 'https://qrlabel.one'), 307);
 }
 
 export const config = {
   matcher: ['/((?!.*\\..*).*)'],
 };
-
