@@ -13,13 +13,46 @@ export default async function BinTokenPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const bin = await getBinByToken(token);
-  if (!bin) notFound();
+  let bin: Awaited<ReturnType<typeof getBinByToken>> = null;
+  try {
+    bin = await getBinByToken(token);
+  } catch (e) {
+    console.error('getBinByToken failed', e);
+  }
 
   const sess = await getSession();
   const initialSession = sess
     ? { authed: true as const, user: { id: sess.userId, roles: await getRolesForUserInBinToken(sess.userId, token) } }
     : { authed: false as const };
+
+  if (!bin) {
+    return (
+      <main className="mx-auto max-w-xl p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs text-neutral-500">Affaldsspand</div>
+            <h1 className="text-2xl font-semibold tracking-tight">Bin</h1>
+            <div className="mt-2 text-sm text-neutral-700">
+              Kunne ikke hente bin-data lige nu. Prøv igen om lidt.
+            </div>
+            <div className="mt-2 text-xs text-neutral-500 font-mono">/k/{token}</div>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-xl border bg-white p-4">
+          <SessionStatus binToken={token} initial={initialSession} />
+        </div>
+
+        <div className="mt-6 rounded-xl border bg-white p-4">
+          <LocationShare binToken={token} />
+        </div>
+
+        <div className="mt-6 text-xs text-neutral-500">
+          QR label URL: <span className="font-mono">qrlabel.eu/k/{token}</span>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-xl p-6">
@@ -62,7 +95,7 @@ export default async function BinTokenPage({
       </div>
 
       <div className="mt-6 text-xs text-neutral-500">
-        Canonical: <span className="font-mono">qrlabel.one/k/{token}</span>
+        QR label URL: <span className="font-mono">qrlabel.eu/k/{token}</span>
       </div>
     </main>
   );
