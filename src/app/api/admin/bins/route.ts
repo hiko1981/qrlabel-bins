@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminAuth';
+import { requireAdminSessionOrKey } from '@/lib/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function GET(req: Request) {
-  const guard = requireAdmin(req);
+  const guard = await requireAdminSessionOrKey(req);
   if (guard) return guard;
 
   const supabase = getSupabaseAdmin();

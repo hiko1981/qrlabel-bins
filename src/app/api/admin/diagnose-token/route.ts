@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/adminAuth';
+import { requireAdminSessionOrKey } from '@/lib/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const Query = z.object({
@@ -8,7 +8,7 @@ const Query = z.object({
 });
 
 export async function GET(req: Request) {
-  const guard = requireAdmin(req);
+  const guard = await requireAdminSessionOrKey(req);
   if (guard) return guard;
 
   const url = new URL(req.url);
@@ -35,4 +35,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, token, error: message }, { status: 500 });
   }
 }
-

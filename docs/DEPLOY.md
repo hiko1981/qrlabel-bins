@@ -99,6 +99,17 @@ Sæt disse env vars på Vercel (Production + Preview):
 - Email (Resend): `RESEND_API_KEY`, `RESEND_FROM`
 - SMS (Twilio): `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
 
+## Admin bootstrap (OTP + passkey)
+
+Admin kan logge ind uden `x-admin-key` via `/admin/login`.
+
+**MANUAL STEP:** Sæt allowlist env vars på Vercel (Production + Preview):
+
+- `ADMIN_BOOTSTRAP_EMAILS` (comma-separated emails)
+- `ADMIN_BOOTSTRAP_PHONES` (comma-separated phone numbers)
+
+Første login kan ske via OTP, derefter kan admin registrere passkey og logge ind uden SMS/email.
+
 ## Fallback (SMS / Email)
 
 **MANUAL STEP:** If you want SMS/email fallbacks, connect a provider (e.g. Twilio/MessageBird for SMS, SendGrid/Postmark for email) and implement a sender in server routes. This repo does not ship with provider credentials by default.

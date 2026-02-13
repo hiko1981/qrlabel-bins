@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/adminAuth';
+import { requireAdminSessionOrKey } from '@/lib/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { randomToken } from '@/lib/random';
 
@@ -15,7 +15,7 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const guard = requireAdmin(req);
+  const guard = await requireAdminSessionOrKey(req);
   if (guard) return guard;
 
   const body = Body.parse(await req.json());

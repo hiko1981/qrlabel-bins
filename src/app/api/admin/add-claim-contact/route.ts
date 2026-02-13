@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/adminAuth';
+import { requireAdminSessionOrKey } from '@/lib/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getBinIdByToken } from '@/lib/data';
 
@@ -12,7 +12,7 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const guard = requireAdmin(req);
+  const guard = await requireAdminSessionOrKey(req);
   if (guard) return guard;
 
   const body = Body.parse(await req.json());
@@ -31,4 +31,3 @@ export async function POST(req: Request) {
   if (error) return new NextResponse(error.message, { status: 500 });
   return NextResponse.json({ ok: true });
 }
-

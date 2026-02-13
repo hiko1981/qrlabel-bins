@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { t } from '@/lib/uiText';
+import Link from 'next/link';
 
 type BinRow = {
   binId: string;
@@ -12,9 +13,6 @@ type BinRow = {
 };
 
 export function AdminLabels() {
-  const [adminKey, setAdminKey] = useState(() =>
-    typeof window !== 'undefined' ? window.localStorage.getItem('qrlabel_admin_key') ?? '' : '',
-  );
   const [bins, setBins] = useState<BinRow[]>([]);
   const [selectedToken, setSelectedToken] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -23,29 +21,20 @@ export function AdminLabels() {
 
   async function loadBins() {
     setError(null);
-    const res = await fetch('/api/admin/bins', { headers: { 'x-admin-key': adminKey } });
+    const res = await fetch('/api/admin/bins');
     if (!res.ok) throw new Error(await res.text());
     const data = (await res.json()) as { bins: BinRow[] };
     setBins(data.bins);
     if (!selectedToken && data.bins[0]?.token) setSelectedToken(data.bins[0].token);
   }
 
-  function persistKey(v: string) {
-    setAdminKey(v);
-    window.localStorage.setItem('qrlabel_admin_key', v);
-  }
-
   return (
     <div className="space-y-3">
-      <label className="text-sm">
-        {t(locale, 'adminKey')}
-        <input
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-          value={adminKey}
-          onChange={(e) => persistKey(e.target.value)}
-          placeholder="ADMIN_API_KEY"
-        />
-      </label>
+      <div className="text-xs text-neutral-500">
+        <Link className="underline" href="/admin/login">
+          Log ind som admin
+        </Link>
+      </div>
       <button
         className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
         type="button"

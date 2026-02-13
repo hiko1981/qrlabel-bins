@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/adminAuth';
+import { requireAdminSessionOrKey } from '@/lib/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { randomToken } from '@/lib/random';
 
@@ -13,13 +13,13 @@ const Body = z.object({
 export async function GET() {
   return NextResponse.json({
     ok: false,
-    message: 'Use POST with x-admin-key and JSON body.',
+    message: 'Use POST with admin session (recommended) or x-admin-key, plus JSON body.',
     example: { binToken: 'JcX5YxtiBOc8aYmP', role: 'owner', expiresInDays: 7 },
   });
 }
 
 export async function POST(req: Request) {
-  const guard = requireAdmin(req);
+  const guard = await requireAdminSessionOrKey(req);
   if (guard) return guard;
 
   const body = Body.parse(await req.json());

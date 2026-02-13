@@ -2,6 +2,8 @@ import 'server-only';
 
 import { NextResponse } from 'next/server';
 import { getOptionalEnv } from '@/lib/env';
+import { getSession } from '@/lib/session';
+import { isAdminUser } from '@/lib/adminSession';
 
 export function requireAdmin(req: Request) {
   const adminKey = getOptionalEnv('ADMIN_API_KEY');
@@ -15,4 +17,18 @@ export function requireAdmin(req: Request) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
   return null;
+}
+
+export async function requireAdminSessionOrKey(req: Request) {
+  const sess = await getSession();
+  if (sess) {
+    try {
+      if (await isAdminUser(sess.userId)) return null;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return new NextResponse(msg, { status: 500 });
+    }
+  }
+  // fallback to key
+  return requireAdmin(req);
 }
