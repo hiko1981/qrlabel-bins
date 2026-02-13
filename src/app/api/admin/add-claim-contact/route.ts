@@ -9,6 +9,7 @@ const Body = z.object({
   role: z.enum(['owner', 'worker']),
   email: z.string().email().optional(),
   phone: z.string().min(3).optional(),
+  autoLink: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -92,15 +93,70 @@ export async function POST(req: Request) {
       .update({ email: nextEmail, phone: nextPhone })
       .eq('id', primary.id);
     if (upd.error) return new NextResponse(upd.error.message, { status: 500 });
+
+    if (body.autoLink) {
+      const userId = await findActivatedUserIdForContact(supabase, { email: nextEmail, phone: nextPhone, role: body.role });
+      if (userId) {
+        await supabase
+          .from('bin_members')
+          .upsert({ bin_id: binId, user_id: userId, role: body.role }, { onConflict: 'bin_id,user_id,role' });
+        await supabase
+          .from('bin_claim_contacts')
+          .update({ activated_at: new Date().toISOString(), activated_user_id: userId })
+          .eq('id', primary.id)
+          .is('activated_at', null);
+      }
+    }
     return NextResponse.json({ ok: true, merged: related.size > 1 });
   }
 
-  const { error: insErr } = await supabase.from('bin_claim_contacts').insert({
+  const { data: inserted, error: insErr } = await supabase
+    .from('bin_claim_contacts')
+    .insert({
     bin_id: binId,
     role: body.role,
     email,
     phone,
-  });
+    })
+    .select('id')
+    .single();
   if (insErr) return new NextResponse(insErr.message, { status: 500 });
+
+  if (body.autoLink && inserted?.id) {
+    const userId = await findActivatedUserIdForContact(supabase, { email, phone, role: body.role });
+    if (userId) {
+      await supabase
+        .from('bin_members')
+        .upsert({ bin_id: binId, user_id: userId, role: body.role }, { onConflict: 'bin_id,user_id,role' });
+      await supabase
+        .from('bin_claim_contacts')
+        .update({ activated_at: new Date().toISOString(), activated_user_id: userId })
+        .eq('id', inserted.id)
+        .is('activated_at', null);
+    }
+  }
   return NextResponse.json({ ok: true });
+}
+
+async function findActivatedUserIdForContact(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  params: { email: string | null; phone: string | null; role: 'owner' | 'worker' },
+) {
+  const clauses: string[] = [];
+  if (params.email) clauses.push(`email.eq.${params.email}`);
+  if (params.phone) clauses.push(`phone.eq.${params.phone}`);
+  if (clauses.length === 0) return null;
+
+  const { data: rows, error } = await supabase
+    .from('bin_claim_contacts')
+    .select('activated_user_id,activated_at')
+    .eq('role', params.role)
+    .not('activated_at', 'is', null)
+    .not('activated_user_id', 'is', null)
+    .or(clauses.join(','))
+    .order('activated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return (rows?.activated_user_id as string | null) ?? null;
 }
