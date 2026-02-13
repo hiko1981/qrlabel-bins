@@ -40,10 +40,7 @@ export async function POST(req: Request) {
   const options = await generateAuthenticationOptions({
     rpID: getRpIdFromHeaders(req.headers),
     userVerification: 'required',
-    allowCredentials: creds.map((c) => ({
-      id: c.credential_id,
-      transports: (c.transports ?? undefined) as any,
-    })),
+    allowCredentials: creds.map((c) => ({ id: c.credential_id })),
   });
 
   const jar = await cookies();

@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getBinByToken } from '@/lib/data';
+import { getRolesForUserInBinToken } from '@/lib/data';
+import { getSession } from '@/lib/session';
 import { SessionStatus } from './session-status';
 
 export default async function BinTokenPage({
@@ -10,6 +12,11 @@ export default async function BinTokenPage({
   const { token } = await params;
   const bin = await getBinByToken(token);
   if (!bin) notFound();
+
+  const sess = await getSession();
+  const initialSession = sess
+    ? { authed: true as const, user: { id: sess.userId, roles: await getRolesForUserInBinToken(sess.userId, token) } }
+    : { authed: false as const };
 
   return (
     <main className="mx-auto max-w-xl p-6">
@@ -24,7 +31,7 @@ export default async function BinTokenPage({
       </div>
 
       <div className="mt-6 rounded-xl border bg-white p-4">
-        <SessionStatus binToken={token} />
+        <SessionStatus binToken={token} initial={initialSession} />
       </div>
 
       <div className="mt-6 text-xs text-neutral-500">
@@ -33,4 +40,3 @@ export default async function BinTokenPage({
     </main>
   );
 }
-

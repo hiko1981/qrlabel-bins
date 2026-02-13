@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
 
 type SessionState =
@@ -8,8 +8,14 @@ type SessionState =
   | { status: 'anonymous' }
   | { status: 'authed'; user: { id: string; roles: string[] } };
 
-export function SessionStatus({ binToken }: { binToken: string }) {
-  const [state, setState] = useState<SessionState>({ status: 'loading' });
+type Initial =
+  | { authed: false }
+  | { authed: true; user: { id: string; roles: string[] } };
+
+export function SessionStatus({ binToken, initial }: { binToken: string; initial: Initial }) {
+  const [state, setState] = useState<SessionState>(() =>
+    initial.authed ? { status: 'authed', user: initial.user } : { status: 'anonymous' },
+  );
   const [error, setError] = useState<string | null>(null);
 
   const canOwnerLogin = useMemo(() => true, []);
@@ -24,10 +30,6 @@ export function SessionStatus({ binToken }: { binToken: string }) {
       | { authed: true; user: { id: string; roles: string[] } };
     setState(data.authed ? { status: 'authed', user: data.user } : { status: 'anonymous' });
   }
-
-  useEffect(() => {
-    refresh().catch((e) => setError(e instanceof Error ? e.message : String(e)));
-  }, []);
 
   async function login(role: 'owner' | 'worker') {
     setError(null);
@@ -64,8 +66,6 @@ export function SessionStatus({ binToken }: { binToken: string }) {
   return (
     <div className="space-y-3">
       <div className="text-sm font-medium">Status</div>
-
-      {state.status === 'loading' ? <div className="text-sm text-neutral-600">Loader…</div> : null}
 
       {state.status === 'anonymous' ? (
         <div className="space-y-3">
@@ -110,4 +110,3 @@ export function SessionStatus({ binToken }: { binToken: string }) {
     </div>
   );
 }
-

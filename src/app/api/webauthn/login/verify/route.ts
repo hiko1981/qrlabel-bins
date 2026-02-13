@@ -60,7 +60,6 @@ export async function POST(req: Request) {
       id: cred.credential_id,
       publicKey: fromBase64Url(cred.public_key),
       counter: Number(cred.counter ?? 0),
-      transports: (cred.transports ?? undefined) as any,
     },
   });
 
