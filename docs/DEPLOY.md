@@ -120,6 +120,8 @@ Valgfrit:
 - `--title="Madaffald" --address="Ringstedgade 146, 4700 Næstved"`
 - Debug:
   - `--debugPng=out/zd421t-preview.png --dryRun=true`
+- Status:
+  - `pnpm run zebra:status -- --ip=<PRINTER_IP>`
 
 **MANUAL STEP:** Vælg og konfigurér en provider:
 

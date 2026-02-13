@@ -10,7 +10,8 @@
     "verify:qr": "tsx scripts/verify-qr.ts",
     "smoke:qr": "tsx scripts/smoke-qr-endpoints.ts",
     "smoke:local": "tsx scripts/smoke-local.ts",
-    "print:zd421t": "tsx scripts/print-zd421t.ts"
+    "print:zd421t": "tsx scripts/print-zd421t.ts",
+    "zebra:status": "tsx scripts/zebra-status.ts"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.2.2",
