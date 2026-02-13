@@ -9,7 +9,7 @@ export default function Home() {
       <div className="mt-4 rounded-xl border bg-white p-4 text-sm text-neutral-700">
         Canonical scan: <span className="font-mono">qrlabel.one/k/&lt;token&gt;</span>
         <br />
-        QR label URL: <span className="font-mono">qrx.dk/k/&lt;locator_token&gt;</span>
+        QR label URL: <span className="font-mono">qrlabel.eu/k/&lt;locator_token&gt;</span>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">

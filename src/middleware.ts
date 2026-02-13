@@ -9,8 +9,10 @@ export function middleware(req: NextRequest) {
   const host = stripPort(req.headers.get('host') ?? '');
   const url = req.nextUrl;
 
+  const isQrLabelEu = host === 'qrlabel.eu' || host === 'www.qrlabel.eu';
   const isQrx = host === 'qrx.dk' || host === 'www.qrx.dk';
-  if (!isQrx) return NextResponse.next();
+  const isRedirectHost = isQrLabelEu || isQrx;
+  if (!isRedirectHost) return NextResponse.next();
 
   const pathname = url.pathname;
   if (pathname.startsWith('/_next') || pathname.startsWith('/api')) {

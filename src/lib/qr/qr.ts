@@ -9,13 +9,14 @@ const SIZE = 1024;
 const MARGIN = 4;
 const LOGO_RATIO = 0.2;
 const PLATE_RATIO = 0.28;
+const QR_LABEL_HOST = 'qrlabel.eu';
 
 function tokenToUrl(token: string) {
-  return `https://qrx.dk/k/${token}`;
+  return `https://${QR_LABEL_HOST}/k/${token}`;
 }
 
 function tmpPath(token: string, ext: 'png' | 'svg') {
-  return path.join(os.tmpdir(), `qrlabel_qr_${token}.${ext}`);
+  return path.join(os.tmpdir(), `qrlabel_qr_${QR_LABEL_HOST}_${token}.${ext}`);
 }
 
 async function readIfExists(filePath: string) {
@@ -48,7 +49,7 @@ function plateSvg(size: number) {
 }
 
 export async function generateQrPngForToken(token: string) {
-  const cacheKey = `png:${token}`;
+  const cacheKey = `png:${QR_LABEL_HOST}:${token}`;
   const cached = getFromMemory(cacheKey);
   if (cached) return cached;
 
@@ -93,7 +94,7 @@ export async function generateQrPngForToken(token: string) {
 }
 
 export async function generateQrSvgForToken(token: string) {
-  const cacheKey = `svg:${token}`;
+  const cacheKey = `svg:${QR_LABEL_HOST}:${token}`;
   const cached = getFromMemory(cacheKey);
   if (cached) return cached;
 

@@ -77,7 +77,7 @@ export default async function LabelPage({ params }: { params: Promise<{ token: s
             Token: <span className="font-mono">{token}</span>
           </div>
           <div className="text-xs text-neutral-500">
-            QR label URL: <span className="font-mono">qrx.dk/k/{token}</span>
+            QR label URL: <span className="font-mono">qrlabel.eu/k/{token}</span>
           </div>
 
           <div className="pt-2">

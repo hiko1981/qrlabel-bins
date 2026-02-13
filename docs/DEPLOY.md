@@ -3,16 +3,16 @@
 ## Domains
 
 **Product domain:** `qrlabel.one`  
-**QR label domain:** `qrx.dk` (redirects to `qrlabel.one`)
+**QR label domain:** `qrlabel.eu` (redirects to `qrlabel.one`)
 
-**MANUAL STEP:** Add `qrlabel.one` and `qrx.dk` as domains on the Vercel project, and configure DNS to point both to this Vercel project. The redirect behavior for `qrx.dk` is implemented in `src/middleware.ts`.
+**MANUAL STEP:** Add `qrlabel.eu` as a domain on the Vercel project, and configure DNS to point it to this Vercel project. The redirect behavior for `qrlabel.eu` is implemented in `src/middleware.ts`.
 
 ### DNS records (recommended quick setup)
 
 Set these records at your DNS provider:
 
-- `A qrx.dk -> 76.76.21.21`
-- `A www.qrx.dk -> 76.76.21.21`
+- `A qrlabel.eu -> 76.76.21.21`
+- `CNAME www.qrlabel.eu -> cname.vercel-dns.com` (or `A www.qrlabel.eu -> 76.76.21.21`)
 - (optional app host) `A bins.qrlabel.one -> 76.76.21.21`
 
 Notes:
