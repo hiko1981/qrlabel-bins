@@ -2,7 +2,6 @@ import net from 'node:net';
 import { z } from 'zod';
 import sharp from 'sharp';
 import { generateQrPngForToken } from '@/lib/qr/qr';
-import { getBinByToken } from '@/lib/data';
 
 const Args = z.object({
   ip: z.string().min(7),
@@ -11,6 +10,8 @@ const Args = z.object({
   widthMm: z.coerce.number().positive().default(102),
   heightMm: z.coerce.number().positive().default(152),
   dpi: z.coerce.number().int().positive().default(203),
+  title: z.string().optional(),
+  address: z.string().optional(),
 });
 
 function mmToDots(mm: number, dpi: number) {
@@ -34,13 +35,8 @@ function packBitsMsbFirst(bits: Uint8Array, width: number, height: number) {
 
 async function buildLabelBitmap(token: string, width: number, height: number) {
   const qr = await generateQrPngForToken(token);
-  const bin = await getBinByToken(token).catch(() => null);
-
-  const title = (bin?.wasteStream ?? bin?.label ?? 'Affald').slice(0, 32);
-  const address = [bin?.addressLine1, [bin?.postalCode, bin?.city].filter(Boolean).join(' '), bin?.country]
-    .filter(Boolean)
-    .join(', ')
-    .slice(0, 64);
+  const title = (process.env.QRLABEL_PRINT_TITLE ?? 'Affald').slice(0, 32);
+  const address = (process.env.QRLABEL_PRINT_ADDRESS ?? '—').slice(0, 64);
 
   const padding = Math.round(width * 0.06);
   const qrSize = Math.min(width - padding * 2, Math.round(height * 0.62));
@@ -62,6 +58,8 @@ async function buildLabelBitmap(token: string, width: number, height: number) {
       font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(height * 0.026)}" fill="#64748b">Scan for info · qrlabel.eu</text>
   </svg>`;
 
+  const qrResized = await sharp(qr.body).resize(qrSize, qrSize, { fit: 'contain' }).png().toBuffer();
+
   const composed = await sharp({
     create: {
       width,
@@ -71,7 +69,7 @@ async function buildLabelBitmap(token: string, width: number, height: number) {
     },
   })
     .composite([
-      { input: qr.body, top: qrTop, left: qrLeft },
+      { input: qrResized, top: qrTop, left: qrLeft },
       { input: Buffer.from(svg), top: 0, left: 0 },
     ])
     .grayscale()
@@ -111,7 +109,12 @@ async function main() {
     widthMm: argv.widthMm,
     heightMm: argv.heightMm,
     dpi: argv.dpi,
+    title: argv.title,
+    address: argv.address,
   });
+
+  if (argv.title) process.env.QRLABEL_PRINT_TITLE = String(argv.title);
+  if (argv.address) process.env.QRLABEL_PRINT_ADDRESS = String(argv.address);
 
   const width = mmToDots(widthMm, dpi);
   const height = mmToDots(heightMm, dpi);
@@ -145,4 +148,3 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

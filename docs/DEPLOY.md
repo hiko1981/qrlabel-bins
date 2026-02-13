@@ -117,6 +117,7 @@ Vercel kan ikke printe til din lokale netværksprinter. Brug i stedet et lokalt 
 Valgfrit:
 - `--port=9100`
 - `--widthMm=102 --heightMm=152 --dpi=203`
+- `--title="Madaffald" --address="Ringstedgade 146, 4700 Næstved"`
 
 **MANUAL STEP:** Vælg og konfigurér en provider:
 
