@@ -8,13 +8,16 @@ export default async function ClaimAccessPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const initialRole = sp.role === 'worker' ? 'worker' : 'owner';
-  const autoStart = sp.auto === '1' || sp.auto === 'true';
+  const roleParam = typeof sp.role === 'string' ? sp.role : Array.isArray(sp.role) ? sp.role[0] : undefined;
+  const autoParam = typeof sp.auto === 'string' ? sp.auto : Array.isArray(sp.auto) ? sp.auto[0] : undefined;
+  const tokenParam = typeof sp.token === 'string' ? sp.token : Array.isArray(sp.token) ? sp.token[0] : '';
+
+  const initialRole = roleParam === 'worker' ? 'worker' : 'owner';
+  const autoStart = autoParam === '1' || autoParam === 'true';
 
   const jar = await cookies();
   const tokenFromCookie = jar.get('qrlabel_last_bin_token')?.value ?? '';
-  const tokenFromQuery = typeof sp.token === 'string' ? sp.token : '';
-  const initialToken = tokenFromQuery || tokenFromCookie;
+  const initialToken = tokenParam || tokenFromCookie;
 
   return (
     <main className="mx-auto max-w-xl p-6">

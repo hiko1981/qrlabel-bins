@@ -107,7 +107,7 @@ export function ClaimAccess({
             className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => start()}
           >
-            Send kode
+            {autoStart && busy ? 'Sender…' : 'Send kode'}
           </button>
           {devCode ? (
             <div className="text-xs text-neutral-500">

@@ -104,7 +104,7 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
           </div>
           <div className="text-xs text-neutral-500">
             Har du ikke passkey endnu?{' '}
-            <Link className="underline" href={`/claim-access`}>
+            <Link className="underline" href={`/claim-access?role=owner&auto=1`}>
               Claim adgang
             </Link>
             .
