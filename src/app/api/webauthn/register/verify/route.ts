@@ -7,6 +7,8 @@ import { getExpectedOriginFromHeaders, getRpIdFromHeaders } from '@/lib/webauthn
 import { toBase64Url } from '@/lib/base64url';
 import { setSession } from '@/lib/session';
 
+export const runtime = 'nodejs';
+
 const Body = z.object({
   claimToken: z.string().min(10),
   response: z.any(),

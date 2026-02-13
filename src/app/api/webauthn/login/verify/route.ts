@@ -7,6 +7,8 @@ import { fromBase64Url } from '@/lib/base64url';
 import { getExpectedOriginFromHeaders, getRpIdFromHeaders } from '@/lib/webauthnServer';
 import { setSession } from '@/lib/session';
 
+export const runtime = 'nodejs';
+
 const Body = z.object({
   binToken: z.string().min(6),
   role: z.enum(['owner', 'worker']),

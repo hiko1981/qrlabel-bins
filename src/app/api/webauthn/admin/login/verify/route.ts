@@ -8,6 +8,8 @@ import { getExpectedOriginFromHeaders, getRpIdFromHeaders } from '@/lib/webauthn
 import { setSession } from '@/lib/session';
 import { isAdminUser } from '@/lib/adminSession';
 
+export const runtime = 'nodejs';
+
 const Body = z.object({
   response: z.any(),
 });
@@ -60,4 +62,3 @@ export async function POST(req: Request) {
   await setSession(cred.user_id);
   return NextResponse.json({ ok: true });
 }
-

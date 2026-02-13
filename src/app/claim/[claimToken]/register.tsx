@@ -30,11 +30,15 @@ export function ClaimRegister({ claimToken, disabled }: { claimToken: string; di
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ claimToken }),
         });
-        if (!optionsRes.ok) throw new Error(await optionsRes.text());
+        if (!optionsRes.ok) {
+          const text = await optionsRes.text().catch(() => '');
+          throw new Error(text || `Kunne ikke forberede passkey (HTTP ${optionsRes.status})`);
+        }
         const json = await optionsRes.json();
         if (!cancelled) setOptions(json);
       } catch (e) {
-        if (!cancelled) setOptionsError(e instanceof Error ? e.message : String(e));
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!cancelled) setOptionsError(msg || 'Kunne ikke forberede passkey');
       }
     })();
     return () => {

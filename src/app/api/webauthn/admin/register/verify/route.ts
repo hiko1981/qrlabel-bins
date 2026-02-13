@@ -8,6 +8,8 @@ import { toBase64Url } from '@/lib/base64url';
 import { getSession, setSession } from '@/lib/session';
 import { requireAdminSession } from '@/lib/adminSession';
 
+export const runtime = 'nodejs';
+
 const Body = z.object({
   response: z.any(),
 });
@@ -54,4 +56,3 @@ export async function POST(req: Request) {
   await setSession(sess.userId);
   return NextResponse.json({ ok: true });
 }
-

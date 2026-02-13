@@ -4,6 +4,8 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getRpIdFromHeaders } from '@/lib/webauthnServer';
 
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   const supabase = getSupabaseAdmin();
 
@@ -40,4 +42,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json(options);
 }
-

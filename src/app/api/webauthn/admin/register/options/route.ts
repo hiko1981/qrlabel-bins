@@ -6,6 +6,8 @@ import { getRpIdFromHeaders } from '@/lib/webauthnServer';
 import { getSession } from '@/lib/session';
 import { requireAdminSession } from '@/lib/adminSession';
 
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   const sess = await getSession();
   if (!sess) return new NextResponse('Unauthorized', { status: 401 });

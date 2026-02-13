@@ -5,6 +5,8 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getRpIdFromHeaders } from '@/lib/webauthnServer';
 
+export const runtime = 'nodejs';
+
 const Body = z.object({
   binToken: z.string().min(6),
   role: z.enum(['owner', 'worker']),
