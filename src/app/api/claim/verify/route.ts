@@ -6,12 +6,14 @@ import { randomToken } from '@/lib/random';
 
 const Body = z.object({
   verificationId: z.string().uuid().optional(),
-  code: z.string().min(4).max(10),
+  code: z.string().min(4).max(20),
   binToken: z.string().min(6),
 });
 
 export async function POST(req: Request) {
-  const body = Body.parse(await req.json());
+  const raw = Body.parse(await req.json());
+  const body = { ...raw, code: raw.code.replace(/[^\d]/g, '') };
+  if (body.code.length < 4) return new NextResponse('Invalid code', { status: 400 });
   const supabase = getSupabaseAdmin();
 
   let v:
@@ -103,6 +105,8 @@ export async function POST(req: Request) {
     user_id: user.id,
     bin_token: body.binToken,
     role: v.role,
+    contact_type: v.contact_type,
+    contact_value: v.contact_value,
     expires_at: expiresAt,
   });
   if (claimIns.error) return new NextResponse(claimIns.error.message, { status: 500 });
@@ -112,5 +116,5 @@ export async function POST(req: Request) {
     .update({ consumed_at: new Date().toISOString() })
     .eq('id', v.id);
 
-  return NextResponse.json({ ok: true, claimUrl: `/claim/${claimToken}` });
+  return NextResponse.json({ ok: true, claimToken, claimUrl: `/claim/${claimToken}` });
 }

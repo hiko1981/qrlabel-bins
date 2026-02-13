@@ -34,25 +34,29 @@ export async function POST(req: Request) {
   const supabase = getSupabaseAdmin();
   const { data: contacts, error: contactsErr } = await supabase
     .from('bin_claim_contacts')
-    .select('email, phone')
+    .select('email, phone, activated_at')
     .eq('bin_id', binId)
     .eq('role', body.role);
   if (contactsErr) return new NextResponse(contactsErr.message, { status: 500 });
   if (!contacts || contacts.length === 0) return new NextResponse('Not allowed', { status: 403 });
 
   const allowedTargets = contacts
+    .filter((c) => !c.activated_at)
     .flatMap((c) => [
       c.phone ? { type: 'phone' as const, value: String(c.phone) } : null,
       c.email ? { type: 'email' as const, value: String(c.email).toLowerCase() } : null,
     ])
     .filter((x): x is { type: 'phone' | 'email'; value: string } => Boolean(x));
 
+  if (allowedTargets.length === 0) {
+    return new NextResponse('Already activated', { status: 409 });
+  }
+
   if (contactType && contactValue) {
     const ok = allowedTargets.some((t) => t.type === contactType && t.value === contactValue);
     if (!ok) return new NextResponse('Not allowed', { status: 403 });
   }
 
-  const code = randomNumericCode(6);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   const locale = getLocaleFromHeaders(req.headers);
@@ -62,8 +66,11 @@ export async function POST(req: Request) {
       : allowedTargets;
 
   const created: string[] = [];
+  const codesByTarget = new Map<string, string>();
   for (const t of targetsToSend) {
-    const codeHash = sha256Base64Url(`${code}:${binId}:${body.role}:${t.type}:${t.value}`);
+    const perTargetCode = randomNumericCode(6);
+    codesByTarget.set(`${t.type}:${t.value}`, perTargetCode);
+    const codeHash = sha256Base64Url(`${perTargetCode}:${binId}:${body.role}:${t.type}:${t.value}`);
     const { data: verification, error } = await supabase
       .from('contact_verifications')
       .insert({
@@ -85,12 +92,16 @@ export async function POST(req: Request) {
   try {
     const results = await Promise.allSettled(
       targetsToSend.map((t) =>
-        deliverOtp({
-          target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
-          code,
-          binToken: body.binToken,
-          role: body.role,
-        }),
+        (() => {
+          const c = codesByTarget.get(`${t.type}:${t.value}`);
+          if (!c) throw new Error('Missing per-target code');
+          return deliverOtp({
+            target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
+            code: c,
+            binToken: body.binToken,
+            role: body.role,
+          });
+        })(),
       ),
     );
     const ok = results.some((r) => r.status === 'fulfilled');
@@ -104,7 +115,12 @@ export async function POST(req: Request) {
     const includeCode = process.env.NODE_ENV !== 'production';
     const msg = e instanceof Error ? e.message : String(e);
     if (includeCode) {
-      return NextResponse.json({ ok: true, verificationIds: created, devCode: code, warning: msg });
+      return NextResponse.json({
+        ok: true,
+        verificationIds: created,
+        devCode: codesByTarget.values().next().value ?? null,
+        warning: msg,
+      });
     }
     return new NextResponse(
       `Kunne ikke sende kode. Konfigurér provider env vars. ${msg}`,
@@ -114,5 +130,9 @@ export async function POST(req: Request) {
 
   // Do not return code in production.
   const includeCode = process.env.NODE_ENV !== 'production';
-  return NextResponse.json({ ok: true, verificationIds: created, devCode: includeCode ? code : undefined });
+  return NextResponse.json({
+    ok: true,
+    verificationIds: created,
+    devCode: includeCode ? codesByTarget.values().next().value ?? null : undefined,
+  });
 }

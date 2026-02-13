@@ -1,49 +1,46 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useWebOtp } from '@/components/useWebOtp';
+import { startRegistration } from '@simplewebauthn/browser';
 
-export function ClaimAccess() {
-  const searchParams = useSearchParams();
-  const initialToken = searchParams.get('token') ?? '';
-  const initialRole = searchParams.get('role') === 'worker' ? 'worker' : 'owner';
-  const auto = searchParams.get('auto') === '1';
+export function ClaimAccess({
+  initialToken,
+  initialRole,
+}: {
+  initialToken: string;
+  initialRole: 'owner' | 'worker';
+}) {
+  const role = initialRole;
 
-  const [binToken, setBinToken] = useState(initialToken);
-  const [role, setRole] = useState<'owner' | 'worker'>(initialRole);
-  const [emailOrPhone, setEmailOrPhone] = useState('');
-  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [binToken] = useState(initialToken);
+  const [awaitingCode, setAwaitingCode] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useWebOtp({
-    enabled: Boolean(verificationId),
-    onCode: (c) => setCode(c),
+    enabled: awaitingCode,
+    onCode: (c) => setCode(c.replace(/[^\d]/g, '').slice(0, 6)),
   });
 
   async function start() {
     setError(null);
     setBusy(true);
     try {
-      const isEmail = emailOrPhone.includes('@');
-      const auto = !emailOrPhone;
       const res = await fetch('/api/claim/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           binToken,
           role,
-          email: !auto && isEmail ? emailOrPhone : undefined,
-          phone: !auto && !isEmail ? emailOrPhone : undefined,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = (await res.json()) as { verificationIds?: string[]; devCode?: string };
-      setVerificationId(data.verificationIds?.[0] ?? null);
       setDevCode(data.devCode ?? null);
+      setAwaitingCode(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -58,11 +55,28 @@ export function ClaimAccess() {
       const res = await fetch('/api/claim/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ verificationId: verificationId ?? undefined, code, binToken }),
+        body: JSON.stringify({ code, binToken }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { claimUrl: string };
-      window.location.assign(data.claimUrl);
+      const data = (await res.json()) as { claimToken: string; claimUrl?: string };
+
+      const optionsRes = await fetch('/api/webauthn/register/options', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ claimToken: data.claimToken }),
+      });
+      if (!optionsRes.ok) throw new Error(await optionsRes.text());
+      const options = await optionsRes.json();
+
+      const attResp = await startRegistration(options);
+      const verifyRes = await fetch('/api/webauthn/register/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ claimToken: data.claimToken, response: attResp }),
+      });
+      if (!verifyRes.ok) throw new Error(await verifyRes.text());
+      const { redirectTo } = (await verifyRes.json()) as { redirectTo: string };
+      window.location.assign(redirectTo);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -72,40 +86,10 @@ export function ClaimAccess() {
 
   return (
     <div className="space-y-3">
-      {!verificationId ? (
+      {!awaitingCode ? (
         <>
-          <div className="grid gap-2">
-            <label className="text-sm">
-              Bin token
-              <input
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-                value={binToken}
-                onChange={(e) => setBinToken(e.target.value)}
-                placeholder="fx AbC123..."
-              />
-            </label>
-            <label className="text-sm">
-              Rolle
-              <select
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-                value={role}
-                onChange={(e) => setRole(e.target.value === 'worker' ? 'worker' : 'owner')}
-              >
-                <option value="owner">owner</option>
-                <option value="worker">worker</option>
-              </select>
-            </label>
-            {!auto ? (
-              <label className="text-sm">
-                Email eller telefon (valgfri)
-                <input
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-                  value={emailOrPhone}
-                  onChange={(e) => setEmailOrPhone(e.target.value)}
-                  placeholder="tom = send til foruddefinerede kontakter"
-                />
-              </label>
-            ) : null}
+          <div className="text-sm text-neutral-700">
+            Koden sendes til den/de kontakt(er) som er registreret for denne spand ({role}).
           </div>
           <button
             type="button"
@@ -113,7 +97,7 @@ export function ClaimAccess() {
             className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => start()}
           >
-            {auto ? 'Send kode til registreret kontakt' : 'Send kode'}
+            Send kode
           </button>
           {devCode ? (
             <div className="text-xs text-neutral-500">
@@ -126,9 +110,9 @@ export function ClaimAccess() {
           <label className="text-sm">
             Indtast kode
             <input
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border px-3 py-3 text-center font-mono text-2xl tracking-[0.25em]"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
               placeholder="6-cifret kode"
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -140,7 +124,7 @@ export function ClaimAccess() {
             className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => verify()}
           >
-            Verificér
+            Aktivér (opret passkey)
           </button>
           {devCode ? (
             <div className="text-xs text-neutral-500">

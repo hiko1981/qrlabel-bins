@@ -7,10 +7,10 @@ import { getFromMemory, setInMemory } from '@/lib/qr/cache';
 
 const SIZE = 1024;
 const MARGIN = 4;
-const LOGO_RATIO = 0.21;
-const PLATE_RATIO = 0.28;
+const LOGO_RATIO = 0.23;
+const PLATE_PADDING_MODULES = 2;
 const QR_LABEL_HOST = 'qrlabel.eu';
-const QR_STYLE_VERSION = 'v3';
+const QR_STYLE_VERSION = 'v4';
 
 function tokenToUrl(token: string) {
   return `https://${QR_LABEL_HOST}/k/${token}`;
@@ -45,7 +45,7 @@ async function getLogoPng() {
 }
 
 function plateSvgAt(x: number, y: number, plate: number) {
-  const rx = Math.round(plate * 0.18);
+  const rx = Math.round(plate * 0.16);
   return Buffer.from(
     `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg"><rect x="${x}" y="${y}" width="${plate}" height="${plate}" rx="${rx}" fill="#ffffff"/></svg>`,
   );
@@ -92,8 +92,9 @@ export async function generateQrPngForToken(token: string) {
   });
 
   const modulePx = scale;
-  const plateSize = roundToModule(qrSize * PLATE_RATIO, modulePx);
   const logoSize = roundToModule(qrSize * LOGO_RATIO, modulePx);
+  const platePaddingPx = Math.max(modulePx, PLATE_PADDING_MODULES * modulePx);
+  const plateSize = roundToModule(logoSize + platePaddingPx * 2, modulePx);
 
   const centerLeft = padStart + Math.round((qrSize - logoSize) / 2);
   const centerTop = padStart + Math.round((qrSize - logoSize) / 2);
@@ -140,6 +141,11 @@ export async function generateQrSvgForToken(token: string) {
   }
 
   const url = tokenToUrl(token);
+  const qr = QRCode.create(url, { errorCorrectionLevel: 'H' });
+  const moduleCount = qr.modules.size;
+  const totalModules = moduleCount + MARGIN * 2;
+  const modulePx = Math.max(1, Math.floor(SIZE / totalModules));
+
   const baseSvg = await QRCode.toString(url, {
     type: 'svg',
     margin: MARGIN,
@@ -147,11 +153,12 @@ export async function generateQrSvgForToken(token: string) {
     color: { dark: '#0f172a', light: '#ffffff' },
   });
 
-  const plate = Math.round(SIZE * PLATE_RATIO);
+  const logoSize = roundToModule(SIZE * LOGO_RATIO, modulePx);
+  const platePaddingPx = Math.max(modulePx, PLATE_PADDING_MODULES * modulePx);
+  const plate = roundToModule(logoSize + platePaddingPx * 2, modulePx);
   const x = Math.round((SIZE - plate) / 2);
   const y = Math.round((SIZE - plate) / 2);
-  const rx = Math.round(plate * 0.18);
-  const logoSize = Math.round(SIZE * LOGO_RATIO);
+  const rx = Math.round(plate * 0.16);
   const logoX = Math.round((SIZE - logoSize) / 2);
   const logoY = Math.round((SIZE - logoSize) / 2);
 

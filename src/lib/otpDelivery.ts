@@ -26,7 +26,8 @@ export async function deliverOtp(params: {
 
   const appNameRaw = getOptionalEnv('OTP_SENDER_NAME') ?? getOptionalEnv('NEXT_PUBLIC_APP_NAME') ?? 'QRLabel';
   const appName = appNameRaw.trim();
-  const msg = `${appName}: din kode er ${code}. (bin ${binToken}, rolle ${role})`;
+  const roleLabel = role === 'owner' ? 'ejer' : 'medarbejder';
+  const msg = `${appName}: din kode er ${code} (${roleLabel}).`;
 
   if (target.type === 'email') {
     const resendKey = getOptionalEnv('RESEND_API_KEY');
@@ -63,7 +64,8 @@ export async function deliverOtp(params: {
   const form = new URLSearchParams();
   form.set('To', toE164Maybe(target.to));
   form.set('From', from);
-  form.set('Body', msg);
+  // WebOTP format (Android Chrome): last line must be "@<domain> #<code>"
+  form.set('Body', `${msg}\n\n@qrlabel.eu #${code}`);
 
   const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
     method: 'POST',

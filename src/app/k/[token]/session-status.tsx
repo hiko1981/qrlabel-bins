@@ -104,7 +104,7 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
           </div>
           <div className="text-xs text-neutral-500">
             Har du ikke passkey endnu?{' '}
-            <Link className="underline" href={`/claim-access?token=${encodeURIComponent(binToken)}`}>
+            <Link className="underline" href={`/claim-access`}>
               Claim adgang
             </Link>
             .
@@ -112,13 +112,13 @@ export function SessionStatus({ binToken, initial }: { binToken: string; initial
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
               className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white"
-              href={`/claim-access?token=${encodeURIComponent(binToken)}&role=owner&auto=1`}
+              href={`/claim-access?role=owner&auto=1`}
             >
               Jeg er ejer
             </Link>
             <Link
               className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
-              href={`/claim-access?token=${encodeURIComponent(binToken)}&role=worker&auto=1`}
+              href={`/claim-access?role=worker&auto=1`}
             >
               Jeg er medarbejder
             </Link>
