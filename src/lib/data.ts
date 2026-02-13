@@ -15,22 +15,31 @@ export type Bin = {
 
 export async function getBinByToken(token: string): Promise<Bin | null> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
+  const { data: tokenRow, error: tokenErr } = await supabase
     .from('bin_tokens')
-    .select('token, bin:bins(id,label,municipality,address_line1,postal_code,city,country,waste_stream)')
+    .select('bin_id')
     .eq('token', token)
     .maybeSingle();
-  const bin = data?.bin ? (Array.isArray(data.bin) ? data.bin[0] : data.bin) : null;
-  if (error || !data || !bin) return null;
+  if (tokenErr) throw new Error(`bin_tokens lookup failed: ${tokenErr.message}`);
+  if (!tokenRow?.bin_id) return null;
+
+  const { data: binRow, error: binErr } = await supabase
+    .from('bins')
+    .select('id,label,municipality,address_line1,postal_code,city,country,waste_stream')
+    .eq('id', tokenRow.bin_id)
+    .maybeSingle();
+  if (binErr) throw new Error(`bins lookup failed: ${binErr.message}`);
+  if (!binRow) return null;
+
   return {
-    id: bin.id,
-    label: bin.label,
-    municipality: bin.municipality,
-    addressLine1: bin.address_line1 ?? null,
-    postalCode: bin.postal_code ?? null,
-    city: bin.city ?? null,
-    country: bin.country ?? null,
-    wasteStream: bin.waste_stream ?? null,
+    id: binRow.id,
+    label: binRow.label,
+    municipality: binRow.municipality,
+    addressLine1: binRow.address_line1 ?? null,
+    postalCode: binRow.postal_code ?? null,
+    city: binRow.city ?? null,
+    country: binRow.country ?? null,
+    wasteStream: binRow.waste_stream ?? null,
   };
 }
 

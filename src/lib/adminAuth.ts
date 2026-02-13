@@ -1,10 +1,13 @@
 import 'server-only';
 
 import { NextResponse } from 'next/server';
-import { mustGetEnv } from '@/lib/env';
+import { getOptionalEnv } from '@/lib/env';
 
 export function requireAdmin(req: Request) {
-  const adminKey = mustGetEnv('ADMIN_API_KEY');
+  const adminKey = getOptionalEnv('ADMIN_API_KEY');
+  if (!adminKey) {
+    return new NextResponse('ADMIN_API_KEY not configured', { status: 500 });
+  }
   const header = req.headers.get('x-admin-key');
   const bearer = req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
   const supplied = header ?? bearer;
@@ -13,4 +16,3 @@ export function requireAdmin(req: Request) {
   }
   return null;
 }
-

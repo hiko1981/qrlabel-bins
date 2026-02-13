@@ -11,7 +11,14 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const body = Body.parse(await req.json());
+  let body: z.infer<typeof Body>;
+  try {
+    body = Body.parse(await req.json());
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return new NextResponse(msg, { status: 400 });
+  }
+
   const supabase = getSupabaseAdmin();
 
   const { data: binTokenRow } = await supabase
@@ -40,7 +47,11 @@ export async function POST(req: Request) {
   const options = await generateAuthenticationOptions({
     rpID: getRpIdFromHeaders(req.headers),
     userVerification: 'required',
-    allowCredentials: creds.map((c) => ({ id: c.credential_id })),
+    allowCredentials: creds.map((c) => ({
+      id: c.credential_id,
+      type: 'public-key',
+      transports: c.transports ?? undefined,
+    })),
   });
 
   const jar = await cookies();
