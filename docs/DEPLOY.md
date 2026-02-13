@@ -7,6 +7,17 @@
 
 **MANUAL STEP:** Add `qrlabel.one` and `qrx.dk` as domains on the Vercel project, and configure DNS to point both to this Vercel project. The redirect behavior for `qrx.dk` is implemented in `src/middleware.ts`.
 
+### DNS records (recommended quick setup)
+
+Set these records at your DNS provider:
+
+- `A qrx.dk -> 76.76.21.21`
+- `A www.qrx.dk -> 76.76.21.21`
+- (optional app host) `A bins.qrlabel.one -> 76.76.21.21`
+
+Notes:
+- `qrlabel.one` apex is currently attached to another project in this Vercel team; do not move it if that project is AVIRA-related.
+
 ## Deployment protection
 
 Hvis du har Vercel Authentication / Deployment Protection slået til, vil public scanning (`/k/<token>`) ikke virke.
