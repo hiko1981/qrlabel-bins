@@ -72,18 +72,24 @@ export async function POST(req: Request) {
   if (created.length === 0) return new NextResponse('Not allowed', { status: 403 });
 
   try {
-    await Promise.all(
-      targets
-        .filter((t) => (t.type === 'email' ? isAllowedAdminEmail(t.value) : isAllowedAdminPhone(t.value)))
-        .map((t) =>
-          deliverOtp({
-            target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
-            code,
-            binToken: 'admin',
-            role: 'owner',
-          }),
-        ),
+    const toSend = targets.filter((t) => (t.type === 'email' ? isAllowedAdminEmail(t.value) : isAllowedAdminPhone(t.value)));
+    const results = await Promise.allSettled(
+      toSend.map((t) =>
+        deliverOtp({
+          target: t.type === 'email' ? { type: 'email', to: t.value } : { type: 'sms', to: t.value },
+          code,
+          binToken: 'admin',
+          role: 'owner',
+        }),
+      ),
     );
+    const ok = results.some((r) => r.status === 'fulfilled');
+    if (!ok) {
+      const reasons = results
+        .filter((r) => r.status === 'rejected')
+        .map((r) => String((r as PromiseRejectedResult).reason?.message ?? (r as PromiseRejectedResult).reason));
+      throw new Error(reasons.join(' | ') || 'No delivery succeeded');
+    }
   } catch (e) {
     const includeCode = process.env.NODE_ENV !== 'production';
     const msg = e instanceof Error ? e.message : String(e);
