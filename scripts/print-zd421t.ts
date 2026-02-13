@@ -41,13 +41,19 @@ async function buildLabelBitmap(token: string, width: number, height: number) {
   const address = (process.env.QRLABEL_PRINT_ADDRESS ?? '—').slice(0, 64);
 
   const padding = Math.round(width * 0.06);
-  const qrSize = Math.min(width - padding * 2, Math.round(height * 0.62));
+  const isCompact = height <= Math.round(width * 0.7) || height <= 320;
+  const qrSize = isCompact
+    ? Math.min(width - padding * 2, height - padding * 2)
+    : Math.min(width - padding * 2, Math.round(height * 0.62));
   const qrLeft = Math.round((width - qrSize) / 2);
-  const qrTop = Math.round(padding * 0.8);
+  const qrTop = isCompact ? padding : Math.round(padding * 0.8);
 
   const svg = `
   <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <text x="${width / 2}" y="${qrTop + qrSize + Math.round(height * 0.08)}" text-anchor="middle"
+    ${
+      isCompact
+        ? ''
+        : `<text x="${width / 2}" y="${qrTop + qrSize + Math.round(height * 0.08)}" text-anchor="middle"
       font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(height * 0.045)}" font-weight="700" fill="#0f172a">${escapeXml(
         title,
       )}</text>
@@ -56,7 +62,8 @@ async function buildLabelBitmap(token: string, width: number, height: number) {
         address || '—',
       )}</text>
     <text x="${width / 2}" y="${height - Math.round(height * 0.06)}" text-anchor="middle"
-      font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(height * 0.026)}" fill="#64748b">Scan for info · qrlabel.eu</text>
+      font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(height * 0.026)}" fill="#64748b">qrlabel.eu</text>`
+    }
   </svg>`;
 
   const qrResized = await sharp(qr.body).resize(qrSize, qrSize, { fit: 'contain' }).png().toBuffer();
