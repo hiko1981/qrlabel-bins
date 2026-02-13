@@ -4,6 +4,8 @@ import { generateQrPngForToken, getQrMeta } from '@/lib/qr/qr';
 
 const SAMPLE_TOKEN = 'JcX5YxtiBOc8aYmP';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SampleLabelsPage() {
   const token = SAMPLE_TOKEN;
   const meta = getQrMeta(token);
