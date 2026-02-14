@@ -15,6 +15,7 @@ function getCookieDomainFromHost(host: string | null): string | undefined {
   const hostname = host.split(':')[0]?.toLowerCase() ?? '';
   if (!hostname || hostname === 'localhost' || /^[\d.]+$/.test(hostname)) return undefined;
   // Default for production; override with SESSION_COOKIE_DOMAIN for other domains.
+  if (hostname === 'qrlabel.one' || hostname.endsWith('.qrlabel.one')) return '.qrlabel.one';
   if (hostname === 'qrlabel.eu' || hostname.endsWith('.qrlabel.eu')) return '.qrlabel.eu';
   return undefined;
 }
