@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { sha256Base64Url } from '@/lib/crypto';
-import { setSession } from '@/lib/session';
+import { applySessionToResponse } from '@/lib/session';
 
 const Body = z.object({
   verificationId: z.string().uuid().optional(),
@@ -13,17 +13,17 @@ export async function POST(req: Request) {
   const body = Body.parse(await req.json().catch(() => ({})));
   const supabase = getSupabaseAdmin();
 
-  let v:
-    | {
-        id: string;
-        contact_type: string;
-        contact_value: string;
-        code_hash: string;
-        expires_at: string;
-        consumed_at: string | null;
-        attempts: number | null;
-      }
-    | null = null;
+  type AdminVerificationRow = {
+    id: string;
+    contact_type: string;
+    contact_value: string;
+    code_hash: string;
+    expires_at: string;
+    consumed_at: string | null;
+    attempts: number | null;
+  };
+
+  let v: AdminVerificationRow | null = null;
 
   if (body.verificationId) {
     const res = await supabase
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       .eq('id', body.verificationId)
       .maybeSingle();
     if (res.error || !res.data) return new NextResponse('Invalid verification', { status: 400 });
-    v = res.data as any;
+    v = res.data as unknown as AdminVerificationRow;
   } else {
     const { data: candidates, error: candErr } = await supabase
       .from('admin_verifications')
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       .limit(25);
     if (candErr || !candidates) return new NextResponse('Invalid verification', { status: 400 });
 
-    for (const row of candidates as any[]) {
+    for (const row of candidates as unknown as AdminVerificationRow[]) {
       if (row.consumed_at) continue;
       if (new Date(row.expires_at) <= new Date()) continue;
       if ((row.attempts ?? 0) >= 5) continue;
@@ -94,6 +94,7 @@ export async function POST(req: Request) {
 
   await supabase.from('admin_verifications').update({ consumed_at: new Date().toISOString() }).eq('id', v.id);
 
-  await setSession(userId);
-  return NextResponse.json({ ok: true, userId, redirectTo: '/admin/labels' });
+  const res = NextResponse.json({ ok: true, userId, redirectTo: '/admin/labels' });
+  await applySessionToResponse(res, userId, req);
+  return res;
 }

@@ -5,7 +5,7 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getExpectedOriginFromHeaders, getRpIdFromHeaders } from '@/lib/webauthnServer';
 import { toBase64Url } from '@/lib/base64url';
-import { getSession, setSession } from '@/lib/session';
+import { applySessionToResponse, getSession } from '@/lib/session';
 import { requireAdminSession } from '@/lib/adminSession';
 
 export const runtime = 'nodejs';
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
   });
   if (insert.error) return new NextResponse(insert.error.message, { status: 500 });
 
-  await setSession(sess.userId);
-  return NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true });
+  await applySessionToResponse(res, sess.userId, req);
+  return res;
 }

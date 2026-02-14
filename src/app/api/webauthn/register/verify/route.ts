@@ -5,7 +5,7 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getExpectedOriginFromHeaders, getRpIdFromHeaders } from '@/lib/webauthnServer';
 import { toBase64Url } from '@/lib/base64url';
-import { setSession } from '@/lib/session';
+import { applySessionToResponse } from '@/lib/session';
 
 export const runtime = 'nodejs';
 
@@ -114,6 +114,7 @@ export async function POST(req: Request) {
     }
   }
 
-  await setSession(claim.user_id);
-  return NextResponse.json({ ok: true, redirectTo: `/k/${claim.bin_token}` });
+  const res = NextResponse.json({ ok: true, redirectTo: `/k/${claim.bin_token}` });
+  await applySessionToResponse(res, claim.user_id, req);
+  return res;
 }
