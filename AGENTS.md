@@ -14,7 +14,7 @@ QRLABEL Bins er et QR-baseret identitetssystem for affaldsbeholdere.
 
 - Hver bin har en unik `locator_token`.
 - QR-kode peger på `https://qrx.dk/k/<locator_token>`.
-- `qrx.dk` redirecter til `https://qrlabel.one/k/<locator_token>`.
+- `qrx.dk` redirecter til QRLABEL-host (pt. `https://qrlabel.eu/k/<locator_token>`).
 - Systemet er **web-only** (ingen app), rollebaseret (**public / owner / worker**), device-bundet via passkeys, push-notifikationsbaseret og driftsegnet (events, hangtags, kvittering).
 
 ## 2) Roller og adgangsmodel (skal bevares)
@@ -93,4 +93,3 @@ Målet er:
 - Scanning af **egen** bin (når session/owner-rolle findes) lander i owner hub.
 - Scanning af **fremmed** bin viser public view.
 - Første gang på en device: claim → passkey → push → derefter single-tap.
-
