@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const supabase = getSupabaseAdmin();
   const { data: contactsRaw, error: contactsErr } = await supabase
     .from('bin_claim_contacts')
-    .select('id, email, phone, activated_at')
+    .select('id, email, phone, activated_at, activated_user_id')
     .eq('bin_id', binId)
     .eq('role', body.role);
   if (contactsErr) return new NextResponse(contactsErr.message, { status: 500 });
@@ -44,7 +44,13 @@ export async function POST(req: Request) {
   // Best-effort merge: if there is exactly one inactive email-only row and one inactive phone-only row,
   // merge them into a single row so the owner gets the same code on both channels.
   // This handles the common "one owner with both email+phone" setup even if added as two rows.
-  let contacts = contactsRaw as Array<{ id: string; email: string | null; phone: string | null; activated_at: string | null }>;
+  let contacts = contactsRaw as Array<{
+    id: string;
+    email: string | null;
+    phone: string | null;
+    activated_at: string | null;
+    activated_user_id: string | null;
+  }>;
   try {
     const inactive = contacts.filter((c) => !c.activated_at);
     const hasCombined = inactive.some((c) => Boolean(c.email) && Boolean(c.phone));
@@ -76,7 +82,7 @@ export async function POST(req: Request) {
         // Refresh
         const { data: merged } = await supabase
           .from('bin_claim_contacts')
-          .select('id, email, phone, activated_at')
+          .select('id, email, phone, activated_at, activated_user_id')
           .eq('bin_id', binId)
           .eq('role', body.role);
         if (merged && merged.length > 0) contacts = merged as any;
@@ -87,7 +93,10 @@ export async function POST(req: Request) {
   }
 
   const inactiveContacts = contacts.filter((c) => !c.activated_at);
-  const allowedTargets = inactiveContacts
+  const isRecoveryFlow = inactiveContacts.length === 0;
+  const contactsToUse = isRecoveryFlow ? contacts : inactiveContacts;
+
+  const allowedTargets = contactsToUse
     .flatMap((c) => [
       c.phone ? { type: 'phone' as const, value: String(c.phone), contactId: String(c.id) } : null,
       c.email
@@ -96,9 +105,7 @@ export async function POST(req: Request) {
     ])
     .filter((x): x is { type: 'phone' | 'email'; value: string; contactId: string } => Boolean(x));
 
-  if (allowedTargets.length === 0) {
-    return new NextResponse('Already activated', { status: 409 });
-  }
+  if (allowedTargets.length === 0) return new NextResponse('Not allowed', { status: 403 });
 
   if (contactType && contactValue) {
     const ok = allowedTargets.some((t) => t.type === contactType && t.value === contactValue);
@@ -229,6 +236,7 @@ export async function POST(req: Request) {
         verificationIds: created,
         devCode: codesByTarget.values().next().value ?? null,
         warning: msg,
+        alreadyActivated: isRecoveryFlow,
       });
     }
     return new NextResponse(
@@ -243,5 +251,6 @@ export async function POST(req: Request) {
     ok: true,
     verificationIds: created,
     devCode: includeCode ? codesByTarget.values().next().value ?? null : undefined,
+    alreadyActivated: isRecoveryFlow,
   });
 }

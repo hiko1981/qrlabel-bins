@@ -106,15 +106,31 @@ export async function POST(req: Request) {
   }
 
   // Create principal + membership + claim token (passkey registration)
-  const { data: user, error: userErr } = await supabase.from('users').insert({}).select('id').single();
-  if (userErr) return new NextResponse(userErr.message, { status: 500 });
+  let userId: string | null = null;
+  if (v.contact_id) {
+    const { data: contactRow } = await supabase
+      .from('bin_claim_contacts')
+      .select('activated_user_id')
+      .eq('id', v.contact_id)
+      .maybeSingle();
+    userId = (contactRow?.activated_user_id ?? null) as string | null;
+  }
 
-  const { error: memberErr } = await supabase.from('bin_members').insert({
-    bin_id: v.bin_id,
-    user_id: user.id,
-    role: v.role,
-  });
-  if (memberErr) return new NextResponse(memberErr.message, { status: 500 });
+  if (!userId) {
+    const { data: user, error: userErr } = await supabase.from('users').insert({}).select('id').single();
+    if (userErr) return new NextResponse(userErr.message, { status: 500 });
+    userId = user.id as string;
+  }
+
+  const memberUpsert = await supabase.from('bin_members').upsert(
+    {
+      bin_id: v.bin_id,
+      user_id: userId,
+      role: v.role,
+    },
+    { onConflict: 'bin_id,user_id,role' },
+  );
+  if (memberUpsert.error) return new NextResponse(memberUpsert.error.message, { status: 500 });
 
   const claimToken = randomToken(24);
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -127,7 +143,7 @@ export async function POST(req: Request) {
 
   const claimIns = await supabase.from('claim_tokens').insert({
     token: claimToken,
-    user_id: user.id,
+    user_id: userId,
     bin_token: body.binToken,
     role: v.role,
     contact_type: v.contact_type,
