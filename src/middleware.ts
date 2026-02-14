@@ -6,42 +6,15 @@ function stripPort(host: string) {
 }
 
 const LABEL_HOSTS = new Set(['qrlabel.eu', 'www.qrlabel.eu']);
-const APP_HOSTS = new Set(['qrlabel.one', 'www.qrlabel.one']);
 const QRX_HOSTS = new Set(['qrx.dk', 'www.qrx.dk']);
 
 export function middleware(req: NextRequest) {
   const host = stripPort(req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '');
   const url = req.nextUrl;
 
-  // Canonicalize auth/app flows to qrlabel.one (passkeys are bound to rpID/origin).
-  if (LABEL_HOSTS.has(host)) {
-    const isNextInternal = url.pathname.startsWith('/_next') || url.pathname.startsWith('/api/qr');
-    if (!isNextInternal) {
-      const shouldMoveToAppHost =
-        url.pathname === '/k' ||
-        url.pathname.startsWith('/k/') ||
-        url.pathname === '/owner' ||
-        url.pathname.startsWith('/owner/') ||
-        url.pathname === '/claim-access' ||
-        url.pathname.startsWith('/claim/') ||
-        url.pathname.startsWith('/api/webauthn') ||
-        url.pathname.startsWith('/api/session') ||
-        url.pathname.startsWith('/api/auth/logout') ||
-        url.pathname.startsWith('/api/owner') ||
-        url.pathname.startsWith('/api/worker');
-      if (shouldMoveToAppHost) {
-        const to = new URL(req.url);
-        to.host = 'qrlabel.one';
-        to.protocol = 'https:';
-        return NextResponse.redirect(to, 307);
-      }
-    }
-  }
-
   // Hide locator token from the browser URL by redirecting /k/<token> -> /k and storing token in a cookie.
   const isAppHost =
     LABEL_HOSTS.has(host) ||
-    APP_HOSTS.has(host) ||
     host === 'localhost' ||
     host.endsWith('.vercel.app');
   if (isAppHost) {
@@ -77,7 +50,9 @@ export function middleware(req: NextRequest) {
   }
 
   if (!token) return NextResponse.redirect(new URL('https://qrlabel.eu/', req.url), 307);
-  return NextResponse.redirect(new URL(`/k/${encodeURIComponent(token)}`, 'https://qrlabel.one'), 307);
+  // IMPORTANT: Do NOT redirect to qrlabel.one (it is reserved/used elsewhere and may redirect to avira.one).
+  // Keep scan/auth flows on qrlabel.eu.
+  return NextResponse.redirect(new URL(`/k/${encodeURIComponent(token)}`, 'https://qrlabel.eu'), 307);
 }
 
 export const config = {
